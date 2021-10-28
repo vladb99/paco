@@ -1,0 +1,11 @@
+[package]
+name = "measurement"
+version = "0.1.0"
+authors = ["Johannes Waidner <Johannes.Waidner@htwg-konstanz.de>"]
+edition = "2018"
+
+[dependencies]
+palaver = "0.2.8"
+libc = "0.2.71"
+tui = "0.9.5"
+termion = "1.5.5"
