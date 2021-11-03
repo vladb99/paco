@@ -37,5 +37,6 @@ fn main() {
     }
     println!("{}",a);}}
     drop(sender);
+    //println!("{}", anna.join().unwrap().print());
     anna.join().unwrap().plot();
 }

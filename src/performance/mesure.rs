@@ -107,6 +107,8 @@ macro_rules! mesure {
              *an den Analyzer-Thread via dem Channel, welcher
              *dem Macro uebergeben wurde. (siehe Zeitstempel $c)
              */
+            let measurement = Mesurement::new(src, sequence, pair_identifier).unwrap();
+            c.send(measurement).unwrap();
         }
         let pair_identifier = match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(n) => n.as_nanos(),

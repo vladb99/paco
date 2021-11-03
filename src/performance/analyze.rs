@@ -54,6 +54,27 @@ impl Analyzer {
          *und diese in die this.HashMap einordnet.
          *Verwenden Sie hierfuer new und add von dem Analyze-Struct.
          */
+
+        let build_receiver = thread::Builder::new().name("receiver thread".into());
+        let handle_receiver = build_receiver
+            .spawn(move || {
+                let mut analyze_map: HashMap<u64, Analyze> = HashMap::new();
+                for received in recv {
+                    if !analyze_map.contains_key(&received.pid) {
+                        let new_analyze = Analyze::new(received.pid);
+                        analyze_map.insert(received.pid, new_analyze);
+                    }
+                    analyze_map.get_mut(&received.pid).unwrap().add(received);
+                }
+                Analyzer {
+                    analyze: analyze_map,
+                    first_time_stamp: 0,
+                    last_time_stamp: 0
+                }
+
+            })
+            .unwrap();
+        handle_receiver
     }
     pub fn empty() -> Analyzer {
         Analyzer {
@@ -69,9 +90,30 @@ impl Analyzer {
      *analyze-Funktion auswertet und diese
      *als eine Art Tabelle ausgibt.
      */
+    pub fn print(mut self) -> String {
+        let mut string = String::from("PID | Core | Runtime | Source\n");
+        let anner = self.analyze().unwrap();
+        for (pid, analyze) in anner.analyze.iter() {
+            for (src, times_vec) in &analyze.runtime_expression {
+                let mut runtime: u128 = 0;
+                let mut core = -1;
+                for (start_time, run_time) in times_vec.iter() {
+                    runtime += run_time;
+                    for (start_time_core, core_index) in &analyze.core_affinity {
+                        if start_time_core == start_time {
+                            core = *core_index;
+                        }
+                    } 
+                }
+                let first_line = src.expression.split("\n").nth(0).unwrap();
+                string.push_str(&format!("{} {} {} {}\n", pid,core, runtime, first_line));
+            }
+        }
+        string
+    }
+
     fn analyze(&mut self) -> Result<Analyzer, String> {
         let mut aner = Analyzer::empty();
-
         for (pid, anna) in self.analyze.iter() {
             if anna.sequences.get(&Sequence::PRE) != anna.sequences.get(&Sequence::POST) {
                 return Result::Err(format!("sequence missing for pid: {}", pid));
