@@ -128,7 +128,7 @@ In Zeile 198 wird das Thread erstellt und das Closure des Threads wird nicht gez
 Ich habe dabei mehrere Sachen ausprobiert um dieses Problem zu loesen, war aber nicht erfolgreich. In dem obigen Code kann man in den Kommentaren sehen, was ich so ausprobiert habe. Darunter zaehlt:
 - die Closure des Threads mit 'move' zu zwingen Ownership zu nehmen, also 'scope.spawn(move |_| {'. Das hat nicht funktoniert, da die 'bands' Variable im Programm so erstellt wurde, dass mehrere Threads dadrauf zugreifen und es wuerde nicht funktionieren jedem Thread die Ownership von 'bands' zu geben. 
 - Selber eine Dummy-unsafe Implementierung von Sync mit Wrap Struct und RefCell fuer Sender zu implementieren und versuchen den Rust Compiler zu 'tauschen', dass Sender doch Sync implementiert und sicher ist.
-- Habe gelesen, dass es auch die Methode 'sync_channel' gibt, die dabei einen normalen Receiver und dabei einen SyncSender erstellt. Der SyncSender implementiert die Sync Trait, aber arbeitet dann mit einem Buffer, der kontrolliert wann gesendet werden kann. Habe versucht auch das zu implementieren, aber kam dann auf andere Probleme mit der schon implementieren analyze.rs und mesure.rs
+- Habe gelesen, dass es auch die Methode 'sync_channel' gibt, die dabei einen normalen Receiver und dabei einen SyncSender erstellt. Der SyncSender implementiert die Sync Trait, aber arbeitet dann mit einem Buffer, der kontrolliert wann gesendet werden kann. Habe versucht auch das zu implementieren, aber kam dann auf andere Probleme mit der schon implementierten analyze.rs und mesure.rs
 
 # lockfree
 ## Einsatz des Macros
