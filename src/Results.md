@@ -55,7 +55,7 @@ Die Bands-Implementierung verteilt die Arbeit unter 8 Threads.
 Die Zeit mit ca. 1,5 Sekunden ist dabei deutlich schneller als bei der single-thread-Implementierung.
 Aus der Laufzeit-Ausgaben kann man sehen, dass die Zeit jedes Threads nicht wirklich gleichmaessig verteilt ist.
 Spaeter aufgetretene Threads wie 23709, 23710 und 23711 brauchen deutlich mehr Zeit, da sie auf die juengeren Threads noch warten muessen.
-Bei mehreren Cores wuerde es wahrscheinlich besser aussehen, aber auf wenigere Cores wird die Zeit fuer die Arbeit nicht regelmaessig aufgeteilt.
+Bei mehreren Cores wuerde es wahrscheinlich besser aussehen, aber auf wenigere Cores wird die Zeit fuer die Arbeit nicht gleichmaessig aufgeteilt.
 
 # task-queue
 ## Einsatz des Macros
@@ -107,11 +107,11 @@ PID | Core | Runtime | Source
 28954 2 269895 {
 ## Kurze Interpretation
 Die Laufzeit-Ausgabe bezieht sich auf dem mesure-macro aus Zeile 197.
+Die Idee der task-queue-Implementierung ist, dasss nachdem ein Thread seine Aufgabe ausgefuehrt hat, soll er danach schauen ob er noch etwas machen kann. D.h. im Thread wird eine Schleife eingebaut.
+Die Laufzeit die alle Threads zusammen gemacht ist deutlich schneller als die von den ersten Implementierungen. Das macht auch Sinn, da die Threads die Schneller fertig werden, auch weiter 'mithelfen' und nicht gleich beendet werden.
 
-Den macro wollte ich eigentlich wieder um der render Methode rum haben, um zu sehen wie jeder Thread Aufgaben nimmt, diese ausfuehrt und dann sich eine neue Aufgabe holt.
-Aus diesem Grund, glaube ich dass in der Laufzeit-Ausgabe dann eventuell ein Thread mehrmals angezeit wird, da er wie in den letzten Implementierungen nicht nur eine render Aufgabe aufnimmt, sondern mehrere.
-Ich konnte den macro aber nicht an dieser Stelle machen, da ich es einfach nicht geschafft habe es zum Laufen zu bringen.
-Konnte den folgenden Fehler nicht loesen:
+Den macro wollte ich eigentlich wieder um der render Methode rum haben, um genau zu sehen wie jeder Thread Aufgaben nimmt, diese ausfuehrt und dann sich eine neue Aufgabe holt.
+Ich konnte den macro aber nicht an dieser Stelle machen, da ich es einfach nicht geschafft habe es zum Laufen zu bringen. Dabei hatte ich den folgenden Fehler nicht loesen koennen:
 error[E0277]: `std::sync::mpsc::Sender<measurement::performance::mesure::Mesurement>` cannot be shared between threads safely
    --> src/main.rs:198:23
     |
@@ -122,9 +122,13 @@ error[E0277]: `std::sync::mpsc::Sender<measurement::performance::mesure::Mesurem
     = note: required because of the requirements on the impl of `Send` for `&std::sync::mpsc::Sender<measurement::performance::mesure::Mesurement>`
     = note: required because it appears within the type `[closure@src/main.rs:198:29: 221:18]`
 
-Ich glaube der Fehler liegt daran, dass der Sender nicht die Trait Sync implementiert. Was ich versucht habe aber nicht funktioniert hat ist:
-- unsafe Implementierung von Sync mit Wrap Struct und RefCell
-- Verwendung von der Methode sync_channel um einen SyncSender zu erstellen, der diese Trait implementiert.
+Aus der Fehleranzeige kann man sehen, dass der Sender nicht die Trait Sync implementiert. Ich glaube es braucht die Sync Trait, um versichern zu koennen dass eine Referenz auf Sender auf sichere Weise in mehreren Threads gleichzeitig verwendet werden kann.
+In Zeile 198 wird das Thread erstellt und das Closure des Threads wird nicht gezwungen Ownership ueber die 'eingefangenen' Variablen zu nehmen, dass heisst die Closure arbeitet mit Referenzen.
+
+Ich habe dabei mehrere Sachen ausprobiert um dieses Problem zu loesen, war aber nicht erfolgreich. In dem obigen Code kann man in den Kommentaren sehen, was ich so ausprobiert habe. Darunter zaehlt:
+- die Closure des Threads mit 'move' zu zwingen Ownership zu nehmen, also 'scope.spawn(move |_| {'. Das hat nicht funktoniert, da die 'bands' Variable im Programm so erstellt wurde, dass mehrere Threads dadrauf zugreifen und es wuerde nicht funktionieren jedem Thread die Ownership von 'bands' zu geben. 
+- Selber eine Dummy-unsafe Implementierung von Sync mit Wrap Struct und RefCell fuer Sender zu implementieren und versuchen den Rust Compiler zu 'tauschen', dass Sender doch Sync implementiert und sicher ist.
+- Habe gelesen, dass es auch die Methode 'sync_channel' gibt, die dabei einen normalen Receiver und dabei einen SyncSender erstellt. Der SyncSender implementiert die Sync Trait, aber arbeitet dann mit einem Buffer, der kontrolliert wann gesendet werden kann. Habe versucht auch das zu implementieren, aber kam dann auf andere Probleme mit der schon implementieren analyze.rs und mesure.rs
 
 # lockfree
 ## Einsatz des Macros
@@ -163,7 +167,8 @@ Aehnlich wie bei der task-queue-Implementierung, wollte ich wieder den mesure! m
 
 Die Implementierung an sich ist aehnlich wie bei task-queue. Nachdem ein Thread mit einer render-Aufgabe fertig ist, schaut es ob es mehr render-Aufgabe verfuegbar sind, und fuehrt diese eventuell aus.
 Anhand der Laufzeit, kann man auch sehen dass die Leistung auch auehnlich wie bei task-queue ist.
-Der Unterschied liegt nur daran, wie es mit den 'bands' umgegangen wird.
+Aus der Gesamtlaufzeit koennte man sagen, dass es nicht wirklich ein grosser Unterschied zu task-queue gibt.
+Im Prinzip liegt der Unterschied nur daran, wie es mit dem 'bands' umgegangen wird.
 
 # rayon
 ## Einsatz des Macros
@@ -196,7 +201,6 @@ PID | Core | Runtime | Source
 ## Kurze Interpretation
 Aehnlich wie bei den letzten zwei Implementierungen, wusste ich nicht wie ich diesen Fehler loesen koennte.
 
-Von der Idee her, arbeitet auch diese Implementierung mit mehreren bands.
-Ich bin mir nicht sicher, aber ich denke dass rayon die Threadlogik im Iterator 'versteckt'.
-Beurteilend auf der Laufzeit, sieht es ziemlich langsam aus, im Vergleich mit den anderen Implementierungen.
+Ich vermute dass die Threadlogik sich im Iterator 'versteckt' befindet.
+Beurteilend auf der Laufzeit, sieht es ziemlich langsam aus, im Vergleich mit den anderen Implementierungen. Ich haette erwartet, dass es gleich schnell oder schneller waere, da es nach der gleichen Idee mit mehreren Bands arbeitet und das Multithreading auch sinnvoll einsetzt.
 Im Vergleich mit den anderen Implementierungen, sieht die Rust-Umsetzung aber sehr einfach aus.
