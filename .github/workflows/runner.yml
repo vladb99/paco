@@ -28,4 +28,4 @@ jobs:
       run: bash -c '. ~/.bashrc;rm -r "/sys-runner/${{ github.actor }}/2";mkdir -p "/sys-runner/${{ github.actor }}/2";cp -r "./"* "/sys-runner/${{ github.actor }}/2/"'
     - name: Run
       working-directory: ./src
-      run: bash -c '. ~/.bashrc;time -a "/sys-runner/${{ github.actor }}/2/output" cargo run >> "/sys-runner/${{ github.actor }}/2/output"'
+      run: bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/2/runtime" -f "Elapsed real:%E\nNumber of page faults:%F\nCPU-seconds (kernel):%S\nCPU-seconds (user):%U\nswapped out:%W\ncontext-switched-involuntarily:%c\ncontext-switched-voluntarily:%w" cargo run >> "/sys-runner/${{ github.actor }}/2/output"'
