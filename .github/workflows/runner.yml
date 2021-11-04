@@ -1,0 +1,31 @@
+name: hw-tracking
+
+on:
+  push:
+    branches: [dev, tracking]
+  pull_request:
+    
+defaults:
+  run:
+    working-directory: ./
+jobs:
+  tracking:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    env:
+      shell: bash
+      working-directory: ./
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      working-directory: ./src
+      run: bash -c ". ~/.bashrc;cargo build"
+    - name: Link
+      working-directory: ./src
+      run: ln -vs /sys-runner/Cars.mp4 ./Cars.mp4
+    - name: Copy
+      working-directory: ./
+      run: bash -c '. ~/.bashrc;rm -r "/sys-runner/${{ github.actor }}/2";mkdir -p "/sys-runner/${{ github.actor }}/2";cp -r "./"* "/sys-runner/${{ github.actor }}/2/"'
+    - name: Run
+      working-directory: ./src
+      run: bash -c ". ~/.bashrc;cargo run"

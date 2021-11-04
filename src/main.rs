@@ -4,7 +4,7 @@ pub mod video;
 use detection::*;
 use video::*;
 
-const SHOW_GUI: bool = true;
+const SHOW_GUI: bool = false;
 
 fn main() {
     let window = "video";
@@ -37,7 +37,7 @@ fn main() {
             break;
         }
         if !SHOW_GUI {
-            idx += 50f64;
+            idx += 100f64;
             continue;
         }
         highgui::imshow(window, &frame).unwrap();
