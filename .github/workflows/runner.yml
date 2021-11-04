@@ -32,6 +32,9 @@ jobs:
            bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/2/runtime" -f "Elapsed real:%E\nNumber of page faults:%F\nCPU-seconds (kernel):%S\nCPU-seconds (user):%U\nswapped out:%W\ncontext-switched-involuntarily:%c\ncontext-switched-voluntarily:%w" cargo run >> "/sys-runner/${{ github.actor }}/2/output"'
            echo "runtime="$(cat "/sys-runner/${{ github.actor }}/2/runtime") >> $GITHUB_ENV
            echo "output="$(cat "/sys-runner/${{ github.actor }}/2/output") >> $GITHUB_ENV
+           cat "/sys-runner/${{ github.actor }}/2/runtime"
+           echo "----"
+           cat "/sys-runner/${{ github.actor }}/2/output"
     - name: 'Comment PR'
       uses: actions/github-script@0.3.0
       if: github.event_name == 'pull_request'
