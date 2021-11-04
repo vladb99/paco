@@ -28,4 +28,4 @@ jobs:
       run: bash -c '. ~/.bashrc;rm -r "/sys-runner/${{ github.actor }}/2";mkdir -p "/sys-runner/${{ github.actor }}/2";cp -r "./"* "/sys-runner/${{ github.actor }}/2/"'
     - name: Run
       working-directory: ./src
-      run: bash -c ". ~/.bashrc;cargo run"
+      run: bash -c '. ~/.bashrc;time cargo run >> "/sys-runner/${{ github.actor }}/2/output"'
