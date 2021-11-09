@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 opencv = "0.59.0"
+clap = "3.0.0-beta.5"
+lazy_static = "1.4.0"
