@@ -29,7 +29,7 @@ jobs:
     - name: Run
       working-directory: ./src
       run: | 
-           bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/2/runtime" -f "Elapsed real:%E\nNumber of page faults:%F\nCPU-seconds (kernel):%S\nCPU-seconds (user):%U\nswapped out:%W\ncontext-switched-involuntarily:%c\ncontext-switched-voluntarily:%w" cargo run >> "/sys-runner/${{ github.actor }}/2/output"'
+           bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/2/runtime" -f "Elapsed real:%E\nNumber of page faults:%F\nCPU-seconds (kernel):%S\nCPU-seconds (user):%U\nswapped out:%W\ncontext-switched-involuntarily:%c\ncontext-switched-voluntarily:%w" cargo run -- -f Cars.mp4 >> "/sys-runner/${{ github.actor }}/2/output"'
            echo "runtime="$(cat "/sys-runner/${{ github.actor }}/2/runtime") >> $GITHUB_ENV
            echo "output="$(cat "/sys-runner/${{ github.actor }}/2/output") >> $GITHUB_ENV
            cat "/sys-runner/${{ github.actor }}/2/runtime"
