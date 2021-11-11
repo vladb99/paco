@@ -46,7 +46,7 @@ jobs:
            echo "$rank"
            echo -e "\e[32m-------------------------------\e[0m"
            echo "---" > "../issue"
-           echo "title: Runner" >> "../issue"
+           echo "title: Runner-Damenproblem" >> "../issue"
            echo "---" >> "../issue"
            echo "# Programm Analyse " >> "../issue"
            printf "$run_stat" >> "../issue"
