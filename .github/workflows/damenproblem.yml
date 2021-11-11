@@ -37,7 +37,7 @@ jobs:
            echo "second="$(echo "$rank"| sed '3!d' ) >> $GITHUB_ENV
            echo "third="$(echo "$rank"| sed '4!d' ) >> $GITHUB_ENV
            echo "own_results="$(echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}") >> $GITHUB_ENV
-           printf "run_stat=$run_stat" >> $GITHUB_ENV
+           printf "run_stat=\'$run_stat\'" >> $GITHUB_ENV
            echo -e "\e[32m-------------------------------\e[0m"
            echo -e "\e[31mProgramm Ausgabe\e[0m"
            echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}"
