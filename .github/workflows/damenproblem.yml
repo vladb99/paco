@@ -38,9 +38,9 @@ jobs:
            echo "third="$(echo "$rank"| sed '4!d' ) >> $GITHUB_ENV
            echo "own_results="$(echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}") >> $GITHUB_ENV
            echo "Programm Analyse:"
-           echo "$run_stat"
+           printf "$run_stat"
            echo "Programm Ausgabe:"
-           echo "$o_ret"
+           echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}"
            echo "Rangliste:"
            echo "$rank"
     - name: 'Comment PR'
