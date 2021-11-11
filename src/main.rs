@@ -1,6 +1,11 @@
+use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::detect::__is_feature_detected::sha;
 use std::process::id;
+use std::sync::{Arc, Mutex};
 use opencv::{core, highgui};
+use rayon::prelude::*;
 pub mod detection;
 pub mod video;
 use detection::*;
@@ -16,11 +21,12 @@ const SHOW_GUI: bool = true;
 #[macro_use]
 extern crate lazy_static;
 
+
 lazy_static! {
     pub static ref ARGS: (String, f64) = init_args();
 }
 
-pub struct TrackableObject {
+/*pub struct TrackableObject {
     pub object_id: u64,
     pub positions: Vec<Rect>,
     pub frames_for_positions: Vec<f64>,
@@ -40,6 +46,27 @@ impl TrackableObject {
             disappeard: false,
         }
     }
+}*/
+#[derive(Debug)]
+
+pub struct Object {
+    pub frame: f64,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32
+}
+
+impl Object {
+    pub fn new(frame: f64, x: i32, y: i32, width: i32, height: i32) -> Object {
+        Object {
+            frame,
+            x,
+            y,
+            width,
+            height,
+        }
+    }
 }
 
 fn init_args() -> (String, f64) {
@@ -56,17 +83,39 @@ fn init_args() -> (String, f64) {
 }
 
 fn main() {
+    // Get Args
     println!("Path to video: {}", ARGS.0);
     println!("Number of frames: {}", ARGS.1);
+    let number_of_frames = ARGS.1;
 
     let window = "video";
     if SHOW_GUI {
         highgui::named_window(window, 1).unwrap()
     };
+
+    // Open files
     let mut vid = Video::new(&ARGS.0);
     let mut car_classifier = CascadeClassifier::new("cars.xml");
-    println!("total frame count: {}", vid.frame_count);
-    let number_of_frames = ARGS.1;
+
+    // Read the first number_of_frames frames from video
+    println!("Frames are being read...");
+    let mut frames: Vec<Mat> = Vec::new();
+    let mut idx = 0f64;
+    loop {
+        // let mut frame = match vid.get_frame(idx) {
+        //             Ok(x) => x,
+        //             _ => break,
+        // };
+        let gray = vid.get_grayframe(idx).unwrap();
+        frames.push(gray);
+        idx += 1f64;
+        if idx >= number_of_frames {
+            break;
+        }
+    }
+    println!("Frames have been read!");
+
+    // Define the areas for the 5 lanes
     let down_first_area = core::Rect {
         x: 564,
         y: 830,
@@ -74,20 +123,73 @@ fn main() {
         height: 180,
     };
 
-    let mut frames: Vec<Mat> = Vec::new();
+    // Create multiple threads and distribute the frames evenly
+    let step = 10f64;
+    let mut batches: Vec<(f64, f64)> = Vec::new();
     let mut idx = 0f64;
     loop {
-        let mut frame = match vid.get_frame(idx) {
-            Ok(x) => x,
-            _ => break,
-        };
-        let gray = vid.get_grayframe(vid.frame_idx).unwrap();
-        frames.push(gray);
-        if idx >= number_of_frames {
+        let start = idx;
+        idx += step;
+        let mut end = idx;
+        if end > number_of_frames {
+            end = number_of_frames;
+            if start == end {
+                break;
+            }
+            let batch = (start, end);
+            batches.push(batch);
             break;
         }
+        let batch = (start, end);
+        batches.push(batch);
     }
-    println!("{} frames have been read", frames.len());
+
+    let shared_frames = Arc::new(Mutex::new(frames));
+    let shared_classifier = Arc::new(Mutex::new(car_classifier));
+
+    // One lane
+    let mut threads_lane_one = vec![];
+    let mut detected_objects_lane_one: Arc<Mutex<Vec<Object>>>= Arc::new(Mutex::new(Vec::new()));
+    for batch in batches {
+        let cloned_arc_frames = shared_frames.clone();
+        let cloned_classifier = shared_classifier.clone();
+        let cloned_objects = Arc::clone(&detected_objects_lane_one);
+
+        let mut frame_index = batch.0;
+        threads_lane_one.push(thread::spawn(move || {
+            let temp_frames = cloned_arc_frames.lock().unwrap();
+            let mut temp_objects = cloned_objects.lock().unwrap();
+            loop {
+                let frame = temp_frames.get(frame_index as usize).unwrap();
+                let mut temp_classifier = cloned_classifier.lock().unwrap();
+                let cars = temp_classifier.detect_in_rectangle_on_frame(down_first_area, &frame);
+
+                for car in cars {
+                    let object = Object::new(frame_index, car.x, car.y, car.width, car.height);
+                    //let object = Object::new(frame_index, 2, 3, 4, 5);
+                    temp_objects.push(object);
+                }
+                frame_index += 1f64;
+                println!("{:?}", frame_index);
+                if frame_index == batch.1 {
+                    println!("Batch finished");
+                    break;
+                }
+            }
+        }));
+    }
+    // Wait for all threads to push data
+    for thread in threads_lane_one {
+        thread.join();
+    }
+
+    // Sort list_of_objects by frame
+    let list_of_objects = &mut *detected_objects_lane_one.lock().unwrap();
+    list_of_objects.par_sort_by(|a ,b| a.frame.partial_cmp(&b.frame).unwrap_or(Ordering::Equal));
+    print!("{:#?}", list_of_objects);
+
+
+
 
     //let mut objects: Vec<TrackableObject> = Vec::new();
     // loop {
