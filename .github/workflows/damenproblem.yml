@@ -54,7 +54,6 @@ jobs:
                 const { issue: { number: issue_number }, repo: { owner, repo }  } = context;
                 github.issues.createComment({ issue_number, owner, repo, body: "Eigene Ergebnisse:\n${{ env.own_results }}\n\nAktuelle Rangliste:\n1. ${{ env.first }}\n2. ${{ env.second }}\n3. ${{ env.third }}\n" });
     - name: 'Post ISSUE'
-      uses: actions/checkout@v2
       uses: JasonEtco/create-an-issue@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
