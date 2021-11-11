@@ -29,17 +29,40 @@ jobs:
     - name: Run
       working-directory: ./src
       run: | 
-           bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/2/runtime" -f "Elapsed real:%E\nNumber of page faults:%F\nCPU-seconds (kernel):%S\nCPU-seconds (user):%U\nswapped out:%W\ncontext-switched-involuntarily:%c\ncontext-switched-voluntarily:%w" cargo run -- -f Cars.mp4 >> "/sys-runner/${{ github.actor }}/2/output"'
-           echo "runtime="$(cat "/sys-runner/${{ github.actor }}/2/runtime") >> $GITHUB_ENV
+           bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/2/runtime" -f "%e %S %U %F %W %c %w %K %r %s" cargo run -- -f Cars.mp4 >> "/sys-runner/${{ github.actor }}/2/output"'
+           t_ret=($(cat "/sys-runner/${{ github.actor }}/2/runtime"))
+           o_ret=($(cat "/sys-runner/${{ github.actor }}/2/output"))
+           run_stat="time real:\t${t_ret[0]}s\ntime kernel:\t${t_ret[1]}s\ntime user:\t${t_ret[2]}s\npage faults:\t${t_ret[3]}\nswapped out:\t${t_ret[4]}\ncontext switched involuntarily:\t${t_ret[5]}\ncontext switched voluntarily:\t${t_ret[6]}\nAverage total (data+stack+text) memory use of the process:\t${t_ret[7]}KB\nmessages received:\t${t_ret[8]}\nmessages sent:\t${t_ret[9]}\n"
+           rank=$(mysql -h 172.17.0.6 --user="gitaction" --database="abgaben_ws21" --execute="REPLACE INTO verkehrserhebung(grp, real_time_s, kernel_time_s, user_time_s, cnt_page_faults, cnt_swapout, ctx_sw_inv, ctx_sw_vol, avg_total_memory_use_kB, cnt_msg_recv, cnt_msg_send, line_0, line_1, line_2, line_3, line_4) values(\"${{ github.actor }}\", ${t_ret[0]},${t_ret[1]},${t_ret[2]},${t_ret[3]},${t_ret[4]},${t_ret[5]},${t_ret[6]},${t_ret[7]},${t_ret[8]},${t_ret[9]},${o_ret[0]},${o_ret[1]},${o_ret[2]},${o_ret[3]},${o_ret[4]});SELECT * FROM verkehrserhebung ORDER BY real_time_s ASC;")
+           echo "run_stat=$run_stat" >> $GITHUB_ENV
            echo "output="$(cat "/sys-runner/${{ github.actor }}/2/output") >> $GITHUB_ENV
-           cat "/sys-runner/${{ github.actor }}/2/runtime"
-           echo "----"
+           echo -e "\e[32m-------------------------------\e[0m"
+           echo -e "\e[31mProgramm Ausgabe\e[0m"
            cat "/sys-runner/${{ github.actor }}/2/output"
-    - name: 'Comment PR'
-      uses: actions/github-script@0.3.0
-      if: github.event_name == 'pull_request'
+           echo -e "\e[31mProgramm Analyse\e[0m"
+           printf "$run_stat"
+           echo -e "\e[31mRangliste\e[0m"
+           echo "$rank"
+           echo -e "\e[32m-------------------------------\e[0m"
+           echo "---" > "../issue"
+           echo "title: Runner-Tracking" >> "../issue"
+           echo "---" >> "../issue"
+           echo "# Programm Analyse " >> "../issue"
+           printf "$run_stat" >> "../issue"
+           echo "# Programm Ausgabe " >> "../issue"
+           echo "Line0: ${o_ret[0]}" >> "../issue"
+           echo "Line1: ${o_ret[1]}" >> "../issue"
+           echo "Line2: ${o_ret[2]}" >> "../issue"
+           echo "Line3: ${o_ret[3]}" >> "../issue"
+           echo "Line4: ${o_ret[4]}" >> "../issue"
+           echo "# Rangliste" >> "../issue"
+           printf "$rank" >> "../issue"
+
+    - name: 'Post ISSUE'
+      uses: JasonEtco/create-an-issue@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-                const { issue: { number: issue_number }, repo: { owner, repo }  } = context;
-                github.issues.createComment({ issue_number, owner, repo, body: "Messungen:\n${{ env.runtime }}\n\nAusgabe:\n1. ${{ env.output }}" });
+        filename: "issue"
+        update_existing: true
+        search_existing: all
