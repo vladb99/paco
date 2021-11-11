@@ -1,0 +1,10 @@
+[package]
+name = "damen-problem"
+version = "0.1.0"
+authors = ["Johannes Waidner <jwaidner@htwg-konstanz.de>"]
+edition = "2018"
+
+[dependencies]
+tui = "0.14"
+termion = "1.5"
+getopts = "0.2"

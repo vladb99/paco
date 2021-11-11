@@ -1,0 +1,70 @@
+extern crate getopts;
+pub mod util;
+use getopts::Options;
+use std::{env, time};
+use util::board::Board;
+use util::ui::UI;
+
+fn print_usage(program: &str, opts: Options) {
+    let brief = format!("Usage: {} FILE [options]", program);
+    print!("{}", opts.usage(&brief));
+}
+
+const N: usize = 13;
+
+fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) {
+    if column == N {
+        *count += 1;
+        ui.plot(board);
+        return;
+    }
+    for y in 0..N {
+        let mut ok: bool = true;
+        for x in 0..column {
+            if board.get(x, y).is_occupied()
+                || y + x >= column && board.get(x, y + x - column).is_occupied()
+                || y + column < N + x && board.get(x, y + column - x).is_occupied()
+            {
+                ok = false;
+                break;
+            }
+            if !ok {
+                break;
+            }
+        }
+        if ok {
+            board.set(column, y, true);
+            ui.plot(board);
+            solve(board, column + 1, &mut count, &mut ui);
+            board.set(column, y, false);
+        }
+    }
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut opts = Options::new();
+    opts.optflag("g", "graphical", "use graphical output");
+    opts.optflag("h", "help", "print this help menu");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => {
+            panic!("{}", f.to_string())
+        }
+    };
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
+        return;
+    }
+    let mut ui = match matches.opt_present("g") {
+        true => UI::new(),
+        false => UI::disabled(),
+    };
+    let board = Board::new();
+    let now = time::Instant::now();
+    let mut count: i64 = 0;
+    solve(board, 0, &mut count, &mut ui);
+    println!("{}\n{}", now.elapsed().as_nanos(), count);
+}

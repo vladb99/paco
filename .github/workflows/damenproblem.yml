@@ -1,0 +1,42 @@
+name: hw-damenproblem
+
+on:
+  push:
+    branches: [ damen-problem ]
+  pull_request:
+    
+defaults:
+  run:
+    working-directory: ./
+jobs:
+  damen-problem:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    env:
+      shell: bash
+      working-directory: ./
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      working-directory: ./src
+      run: cargo build
+    - name: Run
+      working-directory: ./src
+      run: |
+           ret=($(cargo run damen-problem))
+           rank=$(mysql -h 172.17.0.6 --user="gitaction" --database="abgaben_ws21" --execute="REPLACE INTO damenproblem(grp, time, solutions) values(\"${{ github.actor }}\", ${ret[0]},${ret[1]});SELECT * FROM damenproblem ORDER BY time ASC;")
+           echo "columns="$(echo "$rank"| sed '1!d' ) >> $GITHUB_ENV
+           echo "first="$(echo "$rank"| sed '2!d' ) >> $GITHUB_ENV
+           echo "second="$(echo "$rank"| sed '3!d' ) >> $GITHUB_ENV
+           echo "third="$(echo "$rank"| sed '4!d' ) >> $GITHUB_ENV
+           echo "own_results="$(echo "Laufzeit: ${ret[0]}ns Loesungen: ${ret[1]}") >> $GITHUB_ENV
+           echo "Rangliste:"
+           echo "$rank"
+    - name: 'Comment PR'
+      uses: actions/github-script@0.3.0
+      if: github.event_name == 'pull_request'
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+                const { issue: { number: issue_number }, repo: { owner, repo }  } = context;
+                github.issues.createComment({ issue_number, owner, repo, body: "Eigene Ergebnisse:\n${{ env.own_results }}\n\nAktuelle Rangliste:\n1. ${{ env.first }}\n2. ${{ env.second }}\n3. ${{ env.third }}\n" });
