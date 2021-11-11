@@ -105,7 +105,7 @@ fn main() {
     };
 
     let up_third_area = core::Rect {
-        x: 1350,
+        x: 1400,
         y: 830,
         width: 130,
         height: 180,
