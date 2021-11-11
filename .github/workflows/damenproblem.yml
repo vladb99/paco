@@ -37,7 +37,6 @@ jobs:
            echo "second="$(echo "$rank"| sed '3!d' ) >> $GITHUB_ENV
            echo "third="$(echo "$rank"| sed '4!d' ) >> $GITHUB_ENV
            echo "own_results="$(echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}") >> $GITHUB_ENV
-           printf "run_stat=\'$run_stat\'" >> $GITHUB_ENV
            echo -e "\e[32m-------------------------------\e[0m"
            echo -e "\e[31mProgramm Ausgabe\e[0m"
            echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}"
@@ -46,6 +45,18 @@ jobs:
            echo -e "\e[31mRangliste\e[0m"
            echo "$rank"
            echo -e "\e[32m-------------------------------\e[0m"
+           printf "---\n\
+title: Abgabe\n\
+assignees: {{ github.actor }}\n\
+---\n\
+Das ist eine Abgabe.\n\
+{{ env.own_results }}\n\
+\n\
+Stats:\n\
+{{ env.run_stat }}" > "/sys-runner/${{ github.actor }}/3/issue"
+           printf "$run_stat" >> "/sys-runner/${{ github.actor }}/3/issue"
+
+           
     - name: 'Comment PR'
       uses: actions/github-script@0.3.0
       if: github.event_name == 'pull_request'
@@ -59,6 +70,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        filename: "/sys-runner/${{ github.actor }}/3/issue"
         assignees: ${{ github.actor }}
-        update_existing: true
+        update_existing: assignees, labels, body
         search_existing: all
