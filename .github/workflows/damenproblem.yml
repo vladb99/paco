@@ -37,11 +37,11 @@ jobs:
            echo "second="$(echo "$rank"| sed '3!d' ) >> $GITHUB_ENV
            echo "third="$(echo "$rank"| sed '4!d' ) >> $GITHUB_ENV
            echo "own_results="$(echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}") >> $GITHUB_ENV
-           echo "Programm Analyse:"
-           printf "$run_stat"
-           echo "Programm Ausgabe:"
+           echo -e "\e[31mProgramm Ausgabe\e[0m"
            echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}"
-           echo "Rangliste:"
+           echo -e "\e[31mProgramm Analyse\e[0m"
+           printf "$run_stat"
+           echo -e "\e[31mRangliste\e[0m"
            echo "$rank"
     - name: 'Comment PR'
       uses: actions/github-script@0.3.0
