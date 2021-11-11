@@ -8,7 +8,7 @@ use video::*;
 use clap::{Arg, App};
 use std::thread;
 use std::time::Duration;
-use opencv::core::{Rect, Vector, VectorExtern};
+use opencv::core::{Mat, Rect, Vector, VectorExtern};
 use opencv::dnn::print;
 
 const SHOW_GUI: bool = true;
@@ -73,106 +73,124 @@ fn main() {
         width: 180,
         height: 180,
     };
+
+    let mut frames: Vec<Mat> = Vec::new();
     let mut idx = 0f64;
-    let mut objects: Vec<TrackableObject> = Vec::new();
     loop {
         let mut frame = match vid.get_frame(idx) {
             Ok(x) => x,
             _ => break,
         };
         let gray = vid.get_grayframe(vid.frame_idx).unwrap();
-        video::draw_rectangle_on_frame(down_first_area, &mut frame);
-        let cars = car_classifier.detect_in_rectangle_on_frame(down_first_area, &gray);
-        println!("cars: {} @frame: {}", cars.len(), vid.frame_idx);
-
-        let mut count_active_objects = 0;
-        if !objects.is_empty() {
-            for object in &objects {
-                if !object.disappeard {
-                    count_active_objects += 1;
-                }
-            }
+        frames.push(gray);
+        if idx >= number_of_frames {
+            break;
         }
+    }
+    println!("{} frames have been read", frames.len());
+
+    //let mut objects: Vec<TrackableObject> = Vec::new();
+    // loop {
+    //     let mut frame = match vid.get_frame(idx) {
+    //         Ok(x) => x,
+    //         _ => break,
+    //     };
+    //     let gray = vid.get_grayframe(vid.frame_idx).unwrap();
+    //     video::draw_rectangle_on_frame(down_first_area, &mut frame);
+    //     let cars = car_classifier.detect_in_rectangle_on_frame(down_first_area, &gray);
+    //     println!("cars: {} @frame: {}", cars.len(), vid.frame_idx);
 
         // alle frames in einer datenstruktur
         // radius zwischen positionen
         // wofuer braucht man die geschwindigkeit?
         // von mehreren threads in einer liste reinschreiben?
 
-        for car in cars {
-            //println!("{:?}", car);
-            video::draw_rectangle_on_frame(car, &mut frame);
-            //println!("len is {}", objects.len());
-            if objects.is_empty() || count_active_objects == 0 {
-                println!("Added new trackable object!");
-                let mut object = TrackableObject::new(0);
-                object.positions.push(car);
-                object.frames_for_positions.push(idx);
-                objects.push(object);
-            } else {
-                let mut found_match = false;
-                for object in objects.iter_mut() {
-                    if !object.disappeard {
-                        let last_position = object.positions.last().unwrap();
-                        let pos_diff = (car.y - last_position.y).abs();
-                        // Wenn differenz groesser als 15 Pixel, dann wahrscheinlich nicht das gleiche auto
-                        // alternative noch breide und hoehe im betracht nehmen
-                        if pos_diff > 30 {
-                            object.was_seen_again = false;
-                            continue;
-                        } else {
-                            found_match = true;
-                            println!("Added car to existing object!");
-                            object.positions.push(car);
-                            object.frames_for_positions.push(idx);
-                            object.was_seen_again = true;
-                            object.frames_to_disappear = 5;
-                            break;
-                        }
-                    }
-                }
-                if !found_match {
-                    println!("Added new trackable object!");
-                    let mut object = TrackableObject::new(0);
-                    object.positions.push(car);
-                    object.frames_for_positions.push(idx);
-                    objects.push(object);
-                }
-            }
-        }
 
-        for object in objects.iter_mut() {
-            if !object.was_seen_again && !object.disappeard {
-                object.frames_to_disappear -= 1;
-                if object.frames_to_disappear == 0 {
-                    object.disappeard = true;
-                    println!("Object disappeard")
-                }
-            } else if object.was_seen_again  {
-                object.was_seen_again = false;
-            }
-        }
 
-        if idx >= number_of_frames {
-            break;
-        }
-        if !SHOW_GUI {
-            idx += 100f64;
-            continue;
-        }
-        highgui::imshow(window, &frame).unwrap();
-        let key = highgui::wait_key(10).unwrap();
-        match key {
-            83 => idx += 90f64,
-            81 => idx -= 90f64,
-            32 => continue,
-            -1 => idx += 1f64,
-            _ => {
-                println!("key pressed: {}", key);
-                break;
-            }
-        };
-    }
+
+        // let mut count_active_objects = 0;
+        // if !objects.is_empty() {
+        //     for object in &objects {
+        //         if !object.disappeard {
+        //             count_active_objects += 1;
+        //         }
+        //     }
+        // }
+        //
+        // for car in cars {
+        //     //println!("{:?}", car);
+        //     video::draw_rectangle_on_frame(car, &mut frame);
+        //     //println!("len is {}", objects.len());
+        //     if objects.is_empty() || count_active_objects == 0 {
+        //         println!("Added new trackable object!");
+        //         let mut object = TrackableObject::new(0);
+        //         object.positions.push(car);
+        //         object.frames_for_positions.push(idx);
+        //         objects.push(object);
+        //     } else {
+        //         let mut found_match = false;
+        //         for object in objects.iter_mut() {
+        //             if !object.disappeard {
+        //                 let last_position = object.positions.last().unwrap();
+        //                 let pos_diff = (car.y - last_position.y).abs();
+        //                 // Wenn differenz groesser als 15 Pixel, dann wahrscheinlich nicht das gleiche auto
+        //                 // alternative noch breide und hoehe im betracht nehmen
+        //                 if pos_diff > 30 {
+        //                     object.was_seen_again = false;
+        //                     continue;
+        //                 } else {
+        //                     found_match = true;
+        //                     println!("Added car to existing object!");
+        //                     object.positions.push(car);
+        //                     object.frames_for_positions.push(idx);
+        //                     object.was_seen_again = true;
+        //                     object.frames_to_disappear = 5;
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //         if !found_match {
+        //             println!("Added new trackable object!");
+        //             let mut object = TrackableObject::new(0);
+        //             object.positions.push(car);
+        //             object.frames_for_positions.push(idx);
+        //             objects.push(object);
+        //         }
+        //     }
+        // }
+        //
+        // for object in objects.iter_mut() {
+        //     if !object.was_seen_again && !object.disappeard {
+        //         object.frames_to_disappear -= 1;
+        //         if object.frames_to_disappear == 0 {
+        //             object.disappeard = true;
+        //             println!("Object disappeard")
+        //         }
+        //     } else if object.was_seen_again  {
+        //         object.was_seen_again = false;
+        //     }
+        // }
+
+    //     if idx >= number_of_frames {
+    //         break;
+    //     }
+    //     if !SHOW_GUI {
+    //         idx += 100f64;
+    //         continue;
+    //     }
+    //     highgui::imshow(window, &frame).unwrap();
+    //     let key = highgui::wait_key(10).unwrap();
+    //     match key {
+    //         83 => idx += 90f64,
+    //         81 => idx -= 90f64,
+    //         32 => continue,
+    //         -1 => idx += 1f64,
+    //         _ => {
+    //             println!("key pressed: {}", key);
+    //             break;
+    //         }
+    //     };
+    // }
 }
 
 // fn main() {
