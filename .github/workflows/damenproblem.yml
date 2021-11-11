@@ -19,11 +19,11 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       working-directory: ./src
-      run: cargo build
+      run: bash -c ". ~/.bashrc;cargo build"
     - name: Run
       working-directory: ./src
       run: |
-           ret=($(cargo run damen-problem))
+           ret=($(bash -c ". ~/.bashrc;cargo run damen-problem"))
            rank=$(mysql -h 172.17.0.6 --user="gitaction" --database="abgaben_ws21" --execute="REPLACE INTO damenproblem(grp, time, solutions) values(\"${{ github.actor }}\", ${ret[0]},${ret[1]});SELECT * FROM damenproblem ORDER BY time ASC;")
            echo "columns="$(echo "$rank"| sed '1!d' ) >> $GITHUB_ENV
            echo "first="$(echo "$rank"| sed '2!d' ) >> $GITHUB_ENV
