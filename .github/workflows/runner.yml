@@ -11,7 +11,7 @@ defaults:
 jobs:
   tracking:
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 60
     env:
       shell: bash
       working-directory: ./
