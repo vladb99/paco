@@ -1,19 +1,11 @@
-use std::borrow::Borrow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::detect::__is_feature_detected::sha;
-use std::iter::FromIterator;
-use std::process::id;
 use std::sync::{Arc, Mutex};
-use opencv::{core, highgui};
+use opencv::{core};
 use rayon::prelude::*;
 use detection::*;
 use video::*;
 use clap::{Arg, App};
 use std::thread;
-use std::time::Duration;
-use opencv::core::{Mat, Rect, Vector, VectorExtern};
-use opencv::dnn::print;
 
 pub mod detection;
 pub mod video;
@@ -27,9 +19,6 @@ pub mod video;
 // Last Modified On :   11.11.2021 23.50
 //////////////////////////////////////////////////////////////////////
 
-
-
-const SHOW_GUI: bool = true;
 
 #[macro_use]
 extern crate lazy_static;
@@ -84,13 +73,8 @@ fn main() {
     // Get Args
     let number_of_frames = ARGS.1;
 
-    let window = "video";
-    if SHOW_GUI {
-        highgui::named_window(window, 1).unwrap()
-    };
-
     // Open files
-    let mut car_classifier = CascadeClassifier::new("cars.xml");
+    let car_classifier = CascadeClassifier::new("cars.xml");
 
     // Define the areas for the 5 lanes
     let down_first_area = core::Rect {
@@ -187,7 +171,7 @@ fn count_objects(detected_objects: Vec<Object>) -> i32 {
                 continue;
             }
             let pos_diff = (possible_neighbor.y - reference_object.y).abs();
-            let frame_diff = (possible_neighbor.frame - reference_object.frame);
+            let frame_diff = possible_neighbor.frame - reference_object.frame;
             if pos_diff <= threshold_pixel_y && frame_diff <= threshold_frames {
                 taken_objects.push(j as f64);
                 reference_object = Object::new(possible_neighbor.frame, possible_neighbor.x, possible_neighbor.y, possible_neighbor.width, possible_neighbor.height);
@@ -212,7 +196,7 @@ fn spawn_thread_for_lane(area: core::Rect, shared_classifier: &Arc<Mutex<Cascade
                 let mut temp_classifier = cloned_classifier.lock().unwrap();
                 let cars = temp_classifier.detect_in_rectangle_on_frame(area, &frame);
                 for car in cars {
-                    let mut object = Object::new(frame_index, car.x, car.y, car.width, car.height);
+                    let object = Object::new(frame_index, car.x, car.y, car.width, car.height);
                     temp_objects.push(object);
                 }
                 frame_index += 1f64;
@@ -223,7 +207,7 @@ fn spawn_thread_for_lane(area: core::Rect, shared_classifier: &Arc<Mutex<Cascade
         }));
     }
     for thread in threads_lane_one {
-        thread.join();
+        let _ = thread.join();
     }
 
     // Sort list_of_objects by frame
