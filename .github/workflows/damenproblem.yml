@@ -55,7 +55,6 @@ jobs:
            echo "Loesungen: ${o_ret[1]}" >> "../issue"
            
     - name: Render template
-        id: template
         uses: chuhlomin/render-template@v1.2
         with:
           template: "issue"
