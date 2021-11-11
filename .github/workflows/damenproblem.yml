@@ -20,16 +20,27 @@ jobs:
     - name: Build
       working-directory: ./src
       run: bash -c ". ~/.bashrc;cargo build"
+    - name: Dir
+      working-directory: ./
+      run: bash -c '. ~/.bashrc;rm -r "/sys-runner/${{ github.actor }}/3";mkdir -p "/sys-runner/${{ github.actor }}/3";cp -r "./"* "/sys-runner/${{ github.actor }}/3/"'
     - name: Run
       working-directory: ./src
       run: |
-           ret=($(bash -c ". ~/.bashrc;cargo run damen-problem"))
-           rank=$(mysql -h 172.17.0.6 --user="gitaction" --database="abgaben_ws21" --execute="REPLACE INTO damenproblem(grp, time, solutions) values(\"${{ github.actor }}\", ${ret[0]},${ret[1]});SELECT * FROM damenproblem ORDER BY time ASC;")
+           bash -c '. ~/.bashrc;/usr/bin/time -o "/sys-runner/${{ github.actor }}/3/runtime" -f "%e %S %U %F %W %c %w %K %r %s" cargo run >> "/sys-runner/${{ github.actor }}/3/output"'
+           t_ret=($(cat "/sys-runner/${{ github.actor }}/3/runtime"))
+           o_ret=($(cat "/sys-runner/${{ github.actor }}/3/output"))
+           run_stat="time real:\t${t_ret[0]}s\ntime kernel:\t${t_ret[1]}s\ntime user:\t${t_ret[2]}s\npage faults:\t${t_ret[3]}\nswapped out:\t${t_ret[4]}\ncontext switched involuntarily:\t${t_ret[5]}\ncontext switched voluntarily:\t${t_ret[6]}\nAverage total (data+stack+text) memory use of the process:\t${t_ret[7]}KB\nmessages received:\t${t_ret[8]}\nmessages sent:\t${t_ret[9]}\n"
+           rank=$(mysql -h 172.17.0.6 --user="gitaction" --database="abgaben_ws21" --execute="REPLACE INTO damenproblem(grp, real_time_s, kernel_time_s, user_time_s, cnt_page_faults, cnt_swapout, ctx_sw_inv, ctx_sw_vol, avg_total_memory_use_kB, cnt_msg_recv, cnt_msg_send, time, solutions) values(\"${{ github.actor }}\", ${t_ret[0]},${t_ret[1]},${t_ret[2]},${t_ret[3]},${t_ret[4]},${t_ret[5]},${t_ret[6]},${t_ret[7]},${t_ret[8]},${t_ret[9]},${o_ret[0]},${o_ret[1]});SELECT * FROM damenproblem ORDER BY real_time_s ASC;")
+           
            echo "columns="$(echo "$rank"| sed '1!d' ) >> $GITHUB_ENV
            echo "first="$(echo "$rank"| sed '2!d' ) >> $GITHUB_ENV
            echo "second="$(echo "$rank"| sed '3!d' ) >> $GITHUB_ENV
            echo "third="$(echo "$rank"| sed '4!d' ) >> $GITHUB_ENV
-           echo "own_results="$(echo "Laufzeit: ${ret[0]}ns Loesungen: ${ret[1]}") >> $GITHUB_ENV
+           echo "own_results="$(echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}") >> $GITHUB_ENV
+           echo "Programm Analyse:"
+           echo "$run_stat"
+           echo "Programm Ausgabe:"
+           echo "$o_ret"
            echo "Rangliste:"
            echo "$rank"
     - name: 'Comment PR'
