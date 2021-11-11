@@ -169,8 +169,8 @@ fn main() {
 
 fn count_objects(detected_objects: Vec<Object>) -> i32 {
     let mut objects_count = 0;
-    let threshold_pixel_y = 30;
-    let threshold_frames: f64 = 7f64;
+    let threshold_pixel_y = 75;
+    let threshold_frames: f64 = 10f64;
     let mut taken_objects: Vec<f64> = Vec::new();
     for (i, object) in detected_objects.iter().enumerate() {
         if taken_objects.contains(&(i as f64)) {
