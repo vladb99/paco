@@ -153,7 +153,7 @@ fn main() {
 
 fn count_objects(detected_objects: Vec<Object>) -> i32 {
     let mut objects_count = 0;
-    let threshold_pixel_y = 75;
+    let threshold_pixel_y = 90;
     let threshold_frames: f64 = 10f64;
     let mut taken_objects: Vec<f64> = Vec::new();
     for (i, object) in detected_objects.iter().enumerate() {
