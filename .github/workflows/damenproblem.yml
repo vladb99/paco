@@ -48,11 +48,12 @@ jobs:
            echo "---" > "../issue"
            echo "title: Abgabe" >> "../issue"
            echo "---" >> "../issue"
-           echo "Programm Analyse" >> "../issue"
+           echo "# Programm Analyse" >> "../issue"
            printf "$run_stat" >> "../issue"
-           echo "" >> "../issue"
-           echo "Programm Ausgabe" >> "../issue"
-           echo "Laufzeit: ${o_ret[0]}ns Loesungen: ${o_ret[1]}" >> "../issue"
+           echo "---" >> "../issue"
+           echo "# Programm Ausgabe" >> "../issue"
+           echo "Laufzeit: ${o_ret[0]}ns" >> "../issue"
+           echo "Loesungen: ${o_ret[1]}" >> "../issue"
            
     - name: 'Comment PR'
       uses: actions/github-script@0.3.0
