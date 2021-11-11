@@ -7,10 +7,6 @@ use std::process::id;
 use std::sync::{Arc, Mutex};
 use opencv::{core, highgui};
 use rayon::prelude::*;
-
-pub mod detection;
-pub mod video;
-
 use detection::*;
 use video::*;
 use clap::{Arg, App};
@@ -19,37 +15,29 @@ use std::time::Duration;
 use opencv::core::{Mat, Rect, Vector, VectorExtern};
 use opencv::dnn::print;
 
+pub mod detection;
+pub mod video;
+
+//////////////////////////////////////////////////////////////////////
+// FileName:            main.rs
+// FileType:            Rust - Source file
+// Author:              Vlad Bratulescu, Kevin Castorina, Marco Mollo
+// Task:                Aufgabe 2
+// Created On:          07.11.2021
+// Last Modified On :   11.11.2021 23.50
+//////////////////////////////////////////////////////////////////////
+
+
+
 const SHOW_GUI: bool = true;
 
 #[macro_use]
 extern crate lazy_static;
 
-
 lazy_static! {
     pub static ref ARGS: (String, f64) = init_args();
 }
 
-/*pub struct TrackableObject {
-    pub object_id: u64,
-    pub positions: Vec<Rect>,
-    pub frames_for_positions: Vec<f64>,
-    pub frames_to_disappear: u64,
-    pub was_seen_again: bool,
-    pub disappeard: bool,
-}
-
-impl TrackableObject {
-    pub fn new(id: u64) -> TrackableObject {
-        TrackableObject {
-            object_id: id,
-            positions: Vec::new(),
-            frames_for_positions: Vec::new(),
-            frames_to_disappear: 3,
-            was_seen_again: true,
-            disappeard: false,
-        }
-    }
-}*/
 #[derive(Debug, Copy, Clone)]
 pub struct Object {
     pub frame: f64,
@@ -72,12 +60,11 @@ impl Object {
 
     pub fn cmp(&self, object: &Object) -> bool {
         return self.frame == object.frame &&
-               self.x == object.x &&
-               self.y == object.y &&
-               self.width == object.width &&
-               self.height == object.height
+            self.x == object.x &&
+            self.y == object.y &&
+            self.width == object.width &&
+            self.height == object.height;
     }
-
 }
 
 fn init_args() -> (String, f64) {
@@ -95,8 +82,6 @@ fn init_args() -> (String, f64) {
 
 fn main() {
     // Get Args
-    println!("Path to video: {}", ARGS.0);
-    println!("Number of frames: {}", ARGS.1);
     let number_of_frames = ARGS.1;
 
     let window = "video";
@@ -105,29 +90,7 @@ fn main() {
     };
 
     // Open files
-    let mut vid = Video::new(&ARGS.0);
     let mut car_classifier = CascadeClassifier::new("cars.xml");
-
-    // Read the first number_of_frames frames from video
-    println!("Frames are being read...");
-    let mut frames: Vec<Mat> = Vec::new();
-    let mut idx = 0f64;
-    loop {
-        // let mut frame = match vid.get_frame(idx) {
-        //             Ok(x) => x,
-        //             _ => break,
-        // };
-        let gray = vid.get_grayframe(idx).unwrap();
-        frames.push(gray);
-        idx += 1f64;
-        if idx as i32 % 50 == 0 {
-            println!("{}", idx);
-        }
-        if idx >= number_of_frames {
-            break;
-        }
-    }
-    println!("Frames have been read!");
 
     // Define the areas for the 5 lanes
     let down_first_area = core::Rect {
@@ -136,9 +99,36 @@ fn main() {
         width: 180,
         height: 180,
     };
+    let down_second_area = core::Rect {
+        x: 770,
+        y: 830,
+        width: 150,
+        height: 180,
+    };
+
+    let up_first_area = core::Rect {
+        x: 1000,
+        y: 830,
+        width: 150,
+        height: 180,
+    };
+
+    let up_second_area = core::Rect {
+        x: 1180,
+        y: 830,
+        width: 130,
+        height: 180,
+    };
+
+    let up_third_area = core::Rect {
+        x: 1350,
+        y: 830,
+        width: 130,
+        height: 180,
+    };
 
     // Create multiple threads and distribute the frames evenly
-    let step = 50f64;
+    let step = 100f64;
     let mut batches: Vec<(f64, f64)> = Vec::new();
     let mut idx = 0f64;
     loop {
@@ -158,74 +148,38 @@ fn main() {
         batches.push(batch);
     }
 
-    let shared_frames = Arc::new(Mutex::new(frames));
     let shared_classifier = Arc::new(Mutex::new(car_classifier));
 
-    // One lane
-    let mut threads_lane_one = vec![];
-    let detected_objects_lane_one: Arc<Mutex<Vec<Object>>> = Arc::new(Mutex::new(Vec::new()));
-    for batch in batches {
-        let cloned_arc_frames = shared_frames.clone();
-        let cloned_classifier = shared_classifier.clone();
-        let cloned_objects = Arc::clone(&detected_objects_lane_one);
+    let static_batch: &Vec<(f64, f64)> = Box::leak(Box::from(batches));
 
-        let mut frame_index = batch.0;
-        threads_lane_one.push(thread::spawn(move || {
-            let temp_frames = cloned_arc_frames.lock().unwrap();
-            let mut temp_objects = cloned_objects.lock().unwrap();
-            loop {
-                println!("{}", frame_index);
-                let frame = temp_frames.get(frame_index as usize).unwrap();
-                let mut temp_classifier = cloned_classifier.lock().unwrap();
-                let cars = temp_classifier.detect_in_rectangle_on_frame(down_first_area, &frame);
+    let detected_objects_lane_one = spawn_thread_for_lane(down_first_area, &shared_classifier, static_batch);
+    let detected_objects_lane_two = spawn_thread_for_lane(down_second_area, &shared_classifier, static_batch);
+    let detected_objects_lane_three = spawn_thread_for_lane(up_first_area, &shared_classifier, static_batch);
+    let detected_objects_lane_four = spawn_thread_for_lane(up_second_area, &shared_classifier, static_batch);
+    let detected_objects_lane_five = spawn_thread_for_lane(up_third_area, &shared_classifier, static_batch);
 
-                for car in cars {
-                    let mut object = Object::new(frame_index, car.x, car.y, car.width, car.height);
-                    //let object = Object::new(frame_index, 2, 3, 4, 5);
-                    temp_objects.push(object);
-                }
-                frame_index += 1f64;
-                println!("{:?}", frame_index);
-                if frame_index == batch.1 {
-                    println!("Batch finished");
-                    break;
-                }
-            }
-        }));
-    }
-    // Wait for all threads to push data
-    for thread in threads_lane_one {
-        thread.join();
-    }
+    let cars_count_lane_one = count_objects(detected_objects_lane_one);
+    let cars_count_lane_two = count_objects(detected_objects_lane_two);
+    let cars_count_lane_three = count_objects(detected_objects_lane_three);
+    let cars_count_lane_four = count_objects(detected_objects_lane_four);
+    let cars_count_lane_five = count_objects(detected_objects_lane_five);
 
-    // Sort list_of_objects by frame
-    let list_of_objects = &mut *detected_objects_lane_one.lock().unwrap();
-    list_of_objects.par_sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap_or(Ordering::Equal));
-    //print!("{:#?}", list_of_objects);
+    println!("{} {} {} {} {}", cars_count_lane_one, cars_count_lane_two, cars_count_lane_three, cars_count_lane_four, cars_count_lane_five);
+}
 
-    let mut count_lane_one = 0;
+fn count_objects(detected_objects: Vec<Object>) -> i32 {
+    let mut objects_count = 0;
     let threshold_pixel_y = 30;
     let threshold_frames: f64 = 7f64;
-
-    // for object in list_of_objects. {
-    //     for possible_neighbor in list_of_objects.into_iter() {
-    //
-    //     }
-    // }
-    //     let test: Vec<Object> = Vec::from_iter(list_of_objects.iter().cloned());
-
-    // 0, 1, 2, 3, 4
-
     let mut taken_objects: Vec<f64> = Vec::new();
-    for (i, object) in list_of_objects.iter().enumerate() {
+    for (i, object) in detected_objects.iter().enumerate() {
         if taken_objects.contains(&(i as f64)) {
             continue;
         }
-        //object.belongs_to_car = true;
         taken_objects.push(i as f64);
-        count_lane_one += 1;
+        objects_count += 1;
         let mut reference_object = Object::new(object.frame, object.x, object.y, object.width, object.height);
-        for (j, possible_neighbor) in list_of_objects.iter().enumerate() {
+        for (j, possible_neighbor) in detected_objects.iter().enumerate() {
             if possible_neighbor.cmp(&object) {
                 continue;
             }
@@ -237,351 +191,43 @@ fn main() {
             if pos_diff <= threshold_pixel_y && frame_diff <= threshold_frames {
                 taken_objects.push(j as f64);
                 reference_object = Object::new(possible_neighbor.frame, possible_neighbor.x, possible_neighbor.y, possible_neighbor.width, possible_neighbor.height);
-                //possible_neighbor.belongs_to_car = true;
             }
         }
     }
-    println!("{:?}", taken_objects);
-    println!("{:?}", count_lane_one);
-    // y+1 > y -> auto fährt nach unten
-    // y+1 > y && frame+1 > frame (mit threshold)
-    // y+1 < y -> ist y+1 größer als der Threshold
-    // dann muss neues auto
-    // ansonsten immer noch selbes auto
-    // y+1 == y -> gleiches auto (auto bewegt sich zwar aber box hat sich verändert)
-
-
-    // object in objects
-
-    // frame 10
-    // auto zähler += 1
-    // frame 11 threshold(5) == gleiches auto
-    // frame 16 threshold == gleiches auto
-    // 10 frames mehr heißt neues auto
-    // auto zähler += 1
-
-
-    //let mut objects: Vec<TrackableObject> = Vec::new();
-    // loop {
-    //     let mut frame = match vid.get_frame(idx) {
-    //         Ok(x) => x,
-    //         _ => break,
-    //     };
-    //     let gray = vid.get_grayframe(vid.frame_idx).unwrap();
-    //     video::draw_rectangle_on_frame(down_first_area, &mut frame);
-    //     let cars = car_classifier.detect_in_rectangle_on_frame(down_first_area, &gray);
-    //     println!("cars: {} @frame: {}", cars.len(), vid.frame_idx);
-
-    // alle frames in einer datenstruktur
-    // radius zwischen positionen
-    // wofuer braucht man die geschwindigkeit?
-    // von mehreren threads in einer liste reinschreiben?
-
-
-    // let mut count_active_objects = 0;
-    // if !objects.is_empty() {
-    //     for object in &objects {
-    //         if !object.disappeard {
-    //             count_active_objects += 1;
-    //         }
-    //     }
-    // }
-    //
-    // for car in cars {
-    //     //println!("{:?}", car);
-    //     video::draw_rectangle_on_frame(car, &mut frame);
-    //     //println!("len is {}", objects.len());
-    //     if objects.is_empty() || count_active_objects == 0 {
-    //         println!("Added new trackable object!");
-    //         let mut object = TrackableObject::new(0);
-    //         object.positions.push(car);
-    //         object.frames_for_positions.push(idx);
-    //         objects.push(object);
-    //     } else {
-    //         let mut found_match = false;
-    //         for object in objects.iter_mut() {
-    //             if !object.disappeard {
-    //                 let last_position = object.positions.last().unwrap();
-    //                 let pos_diff = (car.y - last_position.y).abs();
-    //                 // Wenn differenz groesser als 15 Pixel, dann wahrscheinlich nicht das gleiche auto
-    //                 // alternative noch breide und hoehe im betracht nehmen
-    //                 if pos_diff > 30 {
-    //                     object.was_seen_again = false;
-    //                     continue;
-    //                 } else {
-    //                     found_match = true;
-    //                     println!("Added car to existing object!");
-    //                     object.positions.push(car);
-    //                     object.frames_for_positions.push(idx);
-    //                     object.was_seen_again = true;
-    //                     object.frames_to_disappear = 5;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         if !found_match {
-    //             println!("Added new trackable object!");
-    //             let mut object = TrackableObject::new(0);
-    //             object.positions.push(car);
-    //             object.frames_for_positions.push(idx);
-    //             objects.push(object);
-    //         }
-    //     }
-    // }
-    //
-    // for object in objects.iter_mut() {
-    //     if !object.was_seen_again && !object.disappeard {
-    //         object.frames_to_disappear -= 1;
-    //         if object.frames_to_disappear == 0 {
-    //             object.disappeard = true;
-    //             println!("Object disappeard")
-    //         }
-    //     } else if object.was_seen_again  {
-    //         object.was_seen_again = false;
-    //     }
-    // }
-
-    //     if idx >= number_of_frames {
-    //         break;
-    //     }
-    //     if !SHOW_GUI {
-    //         idx += 100f64;
-    //         continue;
-    //     }
-    //     highgui::imshow(window, &frame).unwrap();
-    //     let key = highgui::wait_key(10).unwrap();
-    //     match key {
-    //         83 => idx += 90f64,
-    //         81 => idx -= 90f64,
-    //         32 => continue,
-    //         -1 => idx += 1f64,
-    //         _ => {
-    //             println!("key pressed: {}", key);
-    //             break;
-    //         }
-    //     };
-    // }
+    objects_count
 }
 
-// fn main() {
-//     println!("Path to video: {}", ARGS.0);
-//     println!("Number of frames: {}", ARGS.1);
-//
-//     let window = "video";
-//     if SHOW_GUI {
-//         highgui::named_window(window, 1).unwrap()
-//     };
-//
-//     let mut vid = Video::new(&ARGS.0);
-//     let mut car_classifier = CascadeClassifier::new("cars.xml");
-//     println!("total frame count: {}", vid.frame_count);
-//
-//     let down_first_area = core::Rect {
-//         x: 564,
-//         y: 830,
-//         width: 180,
-//         height: 180,
-//     };
+fn spawn_thread_for_lane(area: core::Rect, shared_classifier: &Arc<Mutex<CascadeClassifier>>, batches: &'static Vec<(f64, f64)>) -> Vec<Object> {
+    let mut threads_lane_one = vec![];
+    let detected_objects: Arc<Mutex<Vec<Object>>> = Arc::new(Mutex::new(Vec::new()));
+    for batch in batches {
+        let cloned_classifier = shared_classifier.clone();
+        let cloned_objects = Arc::clone(&detected_objects);
+        let mut frame_index = batch.0;
+        threads_lane_one.push(thread::spawn(move || {
+            let mut vid = Video::new(&ARGS.0);
+            let mut temp_objects = cloned_objects.lock().unwrap();
+            loop {
+                let frame = vid.get_grayframe(frame_index).unwrap();
+                let mut temp_classifier = cloned_classifier.lock().unwrap();
+                let cars = temp_classifier.detect_in_rectangle_on_frame(area, &frame);
+                for car in cars {
+                    let mut object = Object::new(frame_index, car.x, car.y, car.width, car.height);
+                    temp_objects.push(object);
+                }
+                frame_index += 1f64;
+                if frame_index == batch.1 {
+                    break;
+                }
+            }
+        }));
+    }
+    for thread in threads_lane_one {
+        thread.join();
+    }
 
-
-// let number_of_frames = ARGS.1;
-// let step: u64 = (number_of_frames / 4.0) as u64;
-// let mut idx = 0f64;
-// let mut main_frames: Vector<f64> = Vector::new();
-// loop {
-//     println!("{}", idx);
-//     if idx >= number_of_frames {
-//         break;
-//     }
-//     let mut frame = match vid.get_frame(idx) {
-//         Ok(x) => x,
-//         _ => break,
-//     };
-//     let gray = vid.get_grayframe(vid.frame_idx).unwrap();
-//     let cars = car_classifier.detect_in_rectangle_on_frame(down_first_area, &gray);
-//     let mut is_empty = true;
-//     for car in cars {
-//         if is_empty == true {
-//             is_empty = false;
-//             main_frames.push(idx);
-//             println!("pushed main frame {}", idx);
-//
-
-
-//             thread::spawn(move || {
-//                 let mut thread_index = idx;
-//                 let mut thread_vid = Video::new(&ARGS.0);
-//                 let mut classifier = CascadeClassifier::new("cars.xml");
-//                 loop {
-//                     println!("hello {}", thread_index);
-//                     let mut frame = match thread_vid.get_frame(thread_index) {
-//                         Ok(x) => x,
-//                         _ => break,
-//                     };
-//                     let gray = thread_vid.get_grayframe(thread_vid.frame_idx).unwrap();
-//                     let thread_cars = classifier.detect_in_rectangle_on_frame(down_first_area, &gray);
-//                     for thread_car in thread_cars {
-//                         println!("I saw a car on frame {}", thread_index)
-//                     }
-//                     thread_index += 1f64;
-//                     //thread::sleep(Duration::from_secs(5));
-//                 }
-//             });
-//         }
-//     }
-//     if is_empty {
-//         idx += 1f64;
-//     } else {
-//         idx += step as f64;
-//     }
-//     //highgui::imshow(window, &gray).unwrap();
-// }
-
-// thread::spawn(|| {
-//     let number_of_frames = ARGS.1;
-//     for i in 1..10 {
-//
-//     }
-// });
-
-// let down_second_area = core::Rect {
-//     x: 770,
-//     y: 830,
-//     width: 150,
-//     height: 180,
-// };
-//
-// let up_first_area = core::Rect {
-//     x: 1000,
-//     y: 830,
-//     width: 150,
-//     height: 180,
-// };
-//
-// let up_second_area = core::Rect {
-//     x: 1180,
-//     y: 830,
-//     width: 130,
-//     height: 180,
-// };
-
-// let up_third_area = core:: Rect {
-//     x: 1350,
-//     y: 830,
-//     width: 130,
-//     height: 180,
-// };
-//
-// let mut idx = 0f64;
-// loop {
-//     if idx >= ARGS.1 {
-//         break;
-//     }
-//     let mut frame = match vid.get_frame(idx) {
-//         Ok(x) => x,
-//         _ => break,
-//     };
-//
-//     let gray = vid.get_grayframe(vid.frame_idx).unwrap();
-//
-//     //video::draw_rectangle_on_frame(rect_of_interest, &mut frame);
-//
-//     video::draw_rectangle_on_frame(down_first_area, &mut frame);
-//     video::draw_rectangle_on_frame(down_second_area, &mut frame);
-//
-//     video::draw_rectangle_on_frame(up_first_area, &mut frame);
-//     video::draw_rectangle_on_frame(up_second_area, &mut frame);
-//     video::draw_rectangle_on_frame(up_third_area, &mut frame);
-//
-//     let mut lane_zero = 0;
-//     let mut lane_one = 0;
-//     let mut lane_two = 0;
-//     let mut lane_three = 0;
-//     let mut lane_four = 0;
-//
-//
-//     let mut map_lane_zero: HashMap<u64, Rect> = HashMap::new();
-//
-//     //let mut map_0: HashMap<Rect, u32> = HashMap::new();
-//     // thread cache
-//     // lane cache
-//
-//     let cars0 = car_classifier.detect_in_rectangle_on_frame(down_first_area, &gray);
-//     for car in cars0 {
-//         video::draw_rectangle_on_frame(car, &mut frame);
-//         println!("car at {:?} added on frame {}", car, idx);
-//         map_lane_zero.insert(idx as u64, car);
-//
-//         // car ist das erkannte auto in einem frame in einem rechteck
-//         // es gibt mehrere cars, da sich mehrere autos in einem rechteck befinden koennen
-//         // man sollte pro erkanntem auto ein neues thread erstellen
-//         // dieser thread sollte das auto tracken um zu sehen wann es das rechteck verlaesst
-//         // in einem thread sollte man eine schleife starten, die durch die naechsten frames geht. das thread wird beendet wenn auto das rechteck verlassen hat. Was bringt das?
-//             // thread schaut sich das naechste frame an. Man versucht wieder ein auto in diesem thread zu erkennen.
-//             // man hat jetzt wieder for car in cars:
-//                 // man geht durch alle diese cars und versucht zu erkennen, ob eins davon wirklich das auto ist. (y1 < y2 anschauen oder geschwindigkeit?) Diese neue position dann irgendwo abspeichern
-//             // passt keins der autos? dass naechstes frame vielleicht auch anschauen? oder wieder was mit geschwindigkeit machen?
-//             // wenn das auto wirklich das sichtfeld verlassen hat, dann hat ein thread sich eine bestimme anzahl an frames angeschaut und dabei ein auto gezaehlt. Was bringt das?
-//         //
-//
-//
-//
-//
-//
-//         // if
-//         // // map_0 schon das auto befindet
-//         // // push map_0
-//         // let build_thread = thread::Builder::new().name(format!("{} {:?}", idx, car));
-//         // let handle_thread = build_thread.spawn(|| {
-//         //     lane_one += 1;
-//         //     video::draw_rectangle_on_frame(car, &mut frame);
-//         //     loop {
-//         //
-//         //     }
-//         // // auto rausschmeissem ++1
-//         // }).unwrap();
-//         // println!("{:?}", car);
-//     }
-//
-//     let cars1 = car_classifier.detect_in_rectangle_on_frame(down_second_area, &gray);
-//     for car in cars1 {
-//         video::draw_rectangle_on_frame(car, &mut frame);
-//     }
-//
-//     let cars2 = car_classifier.detect_in_rectangle_on_frame(up_first_area, &gray);
-//     for car in cars2 {
-//         video::draw_rectangle_on_frame(car, &mut frame);
-//     }
-//
-//     let cars3 = car_classifier.detect_in_rectangle_on_frame(up_second_area, &gray);
-//     for car in cars3 {
-//         video::draw_rectangle_on_frame(car, &mut frame);
-//     }
-//
-//     let cars4 = car_classifier.detect_in_rectangle_on_frame(up_third_area, &gray);
-//     for car in cars4 {
-//         video::draw_rectangle_on_frame(car, &mut frame);
-//     }
-//
-//     if idx >= vid.frame_count {
-//         break;
-//     }
-//     if !SHOW_GUI {
-//         idx += 100f64;
-//         continue;
-//     }
-//     highgui::imshow(window, &frame).unwrap();
-//     //idx += 1.0;
-//     let key = highgui::wait_key(10).unwrap();
-//     match key {
-//         83 => idx += 90f64,
-//         81 => idx -= 90f64,
-//         32 => continue,
-//         -1 => idx += 1f64,
-//         _ => {
-//             println!("key pressed: {}", key);
-//             break;
-//         }
-//     };
-// }
-//}
+    // Sort list_of_objects by frame
+    let list_of_objects = &mut *detected_objects.lock().unwrap();
+    list_of_objects.par_sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap_or(Ordering::Equal));
+    list_of_objects.to_owned()
+}
