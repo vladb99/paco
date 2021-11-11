@@ -58,6 +58,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        assignees: {{ github.actor }}
+        assignees: ${{ github.actor }}
         update_existing: true
         search_existing: all
