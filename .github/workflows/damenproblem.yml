@@ -67,5 +67,5 @@ jobs:
       with:
         filename: "/sys-runner/${{ github.actor }}/3/issue"
         assignees: ${{ github.actor }}
-        update_existing: assignees, labels, body
+        update_existing: true
         search_existing: all
