@@ -8,6 +8,7 @@ use util::board::Board;
 use util::ui::UI;
 use std::thread;
 use std::sync::mpsc::*;
+use rayon::prelude::*;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -19,7 +20,7 @@ const N: usize = 13;
 fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) {
     let mut is_main_thread = false;
     if column == 0 {
-        is_main_thread = true;
+       is_main_thread = true;
     }
 
     if column == N {
@@ -29,58 +30,40 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
     }
 
     let (tx, rx) = channel();
-    //let mut count_threads = 0;
-    //let allowed_threads = 13;
+    let mut count_threads = 0;
+    let allowed_threads = 12;
 
     for y in 0..N {
-        if is_main_thread {
-            //count_threads += 1;
-            let tx = tx.clone();
-            thread::spawn(move || {
-                let mut ui = UI::disabled();
-                let mut count: i64 = 0;
+        let mut ok: bool = true;
+        for x in 0..column {
+            if board.get(x, y).is_occupied()
+                || y + x >= column && board.get(x, y + x - column).is_occupied()
+                || y + column < N + x && board.get(x, y + column - x).is_occupied()
+            {
+                ok = false;
+                break;
+            }
+            if !ok {
+                break;
+            }
+        }
+        if ok {
+            board.set(column, y, true);
+            ui.plot(board);
 
-                let mut ok: bool = true;
-                for x in 0..column {
-                    if board.get(x, y).is_occupied()
-                        || y + x >= column && board.get(x, y + x - column).is_occupied()
-                        || y + column < N + x && board.get(x, y + column - x).is_occupied()
-                    {
-                        ok = false;
-                        break;
-                    }
-                    if !ok {
-                        break;
-                    }
-                }
-                if ok {
-                    board.set(column, y, true);
-                    ui.plot(board);
+            if is_main_thread && count_threads <= allowed_threads - 1 {
+                count_threads += 1;
+                let tx = tx.clone();
+                rayon::spawn(move || {
+                    let mut ui = UI::disabled();
+                    let mut count: i64 = 0;
                     solve(board, column + 1, &mut count, &mut ui);
-                    board.set(column, y, false);
-                }
-                tx.send(count).unwrap();
-            });
-        } else {
-            let mut ok: bool = true;
-            for x in 0..column {
-                if board.get(x, y).is_occupied()
-                    || y + x >= column && board.get(x, y + x - column).is_occupied()
-                    || y + column < N + x && board.get(x, y + column - x).is_occupied()
-                {
-                    ok = false;
-                    break;
-                }
-                if !ok {
-                    break;
-                }
-            }
-            if ok {
-                board.set(column, y, true);
-                ui.plot(board);
+                    tx.send(count).unwrap();
+                });
+            } else {
                 solve(board, column + 1, &mut count, &mut ui);
-                board.set(column, y, false);
             }
+            board.set(column, y, false);
         }
     }
     drop(tx);
@@ -88,9 +71,9 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
         *count += msg;
     }
 
-    if is_main_thread {
-        //println!("{}", count_threads);
-    }
+    // if is_main_thread {
+    //     println!("{}", count_threads);
+    // }
 }
 
 fn main() {
