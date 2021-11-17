@@ -6,6 +6,7 @@ use util::board::Board;
 use util::ui::UI;
 use std::thread;
 use std::thread::JoinHandle;
+use thread_priority::*;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -31,6 +32,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
     //let allowed_threads = 13;
 
     let mut threads: Vec<JoinHandle<i64>> = vec![];
+    //let mut threads:[JoinHandle<i64>; 13];
 
     for y in 0..N {
         let mut ok: bool = true;
@@ -54,6 +56,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
                 //count_threads += 1;
                 //let tx = tx.clone();
                 threads.push(thread::spawn(move || {
+                    set_current_thread_priority(ThreadPriority::Max);
                     //let mut ui = UI::disabled();
                     let mut count: i64 = 0;
                     solve(board, column + 1, &mut count);
@@ -104,6 +107,7 @@ fn main() {
     //     true => UI::new(),
     //     false => UI::disabled(),
     // };
+    set_current_thread_priority(ThreadPriority::Max);
     let board = Board::new();
     let now = time::Instant::now();
     let mut count: i64 = 0;
