@@ -8,6 +8,7 @@ use util::board::Board;
 use util::ui::UI;
 use std::thread;
 use std::sync::mpsc::*;
+use std::thread::JoinHandle;
 use rayon::prelude::*;
 
 fn print_usage(program: &str, opts: Options) {
@@ -29,11 +30,11 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
         return;
     }
 
-    let (tx, rx) = channel();
+    //let (tx, rx) = channel();
     //let mut count_threads = 0;
     //let allowed_threads = 12;
 
-    //let mut threads = vec![];
+    let mut threads: Vec<JoinHandle<i64>> = vec![];
 
     for y in 0..N {
         let mut ok: bool = true;
@@ -55,14 +56,14 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
 
             if is_main_thread {
                 //count_threads += 1;
-                let tx = tx.clone();
-                thread::spawn(move || {
+                //let tx = tx.clone();
+                threads.push(thread::spawn(move || {
                     let mut ui = UI::disabled();
                     let mut count: i64 = 0;
                     solve(board, column + 1, &mut count, &mut ui);
-                    tx.send(count).unwrap();
-                    //count
-                });
+                    //tx.send(count).unwrap();
+                    count
+                }));
             } else {
                 solve(board, column + 1, &mut count, &mut ui);
             }
@@ -70,9 +71,14 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
         }
     }
     if is_main_thread {
-        drop(tx);
-        while let Ok(msg) = rx.recv() {
-            *count += msg;
+        // drop(tx);
+        // while let Ok(msg) = rx.recv() {
+        //     *count += msg;
+        // }
+        //*count += threads.iter().map(|t| t.join().unwrap() as i64).sum::<i64>();
+
+        for thread in threads {
+            *count += thread.join().unwrap();
         }
     }
 
