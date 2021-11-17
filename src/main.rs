@@ -30,8 +30,10 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
     }
 
     let (tx, rx) = channel();
-    let mut count_threads = 0;
-    let allowed_threads = 12;
+    //let mut count_threads = 0;
+    //let allowed_threads = 12;
+
+    //let mut threads = vec![];
 
     for y in 0..N {
         let mut ok: bool = true;
@@ -51,14 +53,15 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
             board.set(column, y, true);
             ui.plot(board);
 
-            if is_main_thread && count_threads <= allowed_threads - 1 {
-                count_threads += 1;
+            if is_main_thread {
+                //count_threads += 1;
                 let tx = tx.clone();
-                rayon::spawn(move || {
+                thread::spawn(move || {
                     let mut ui = UI::disabled();
                     let mut count: i64 = 0;
                     solve(board, column + 1, &mut count, &mut ui);
                     tx.send(count).unwrap();
+                    //count
                 });
             } else {
                 solve(board, column + 1, &mut count, &mut ui);
@@ -66,9 +69,11 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
             board.set(column, y, false);
         }
     }
-    drop(tx);
-    while let Ok(msg) = rx.recv() {
-        *count += msg;
+    if is_main_thread {
+        drop(tx);
+        while let Ok(msg) = rx.recv() {
+            *count += msg;
+        }
     }
 
     // if is_main_thread {
