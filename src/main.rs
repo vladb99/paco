@@ -1,7 +1,5 @@
 extern crate getopts;
-
 pub mod util;
-
 use getopts::Options;
 use std::{env, time};
 use util::board::Board;
@@ -16,7 +14,7 @@ fn print_usage(program: &str, opts: Options) {
 
 const N: usize = 13;
 
-fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) {
+fn solve(mut board: Board, column: usize, mut count: &mut i64) {
     let mut is_main_thread = false;
     if column == 0 {
        is_main_thread = true;
@@ -24,7 +22,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
 
     if column == N {
         *count += 1;
-        ui.plot(board);
+        //ui.plot(board);
         return;
     }
 
@@ -50,20 +48,20 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
         }
         if ok {
             board.set(column, y, true);
-            ui.plot(board);
+            //ui.plot(board);
 
             if is_main_thread {
                 //count_threads += 1;
                 //let tx = tx.clone();
                 threads.push(thread::spawn(move || {
-                    let mut ui = UI::disabled();
+                    //let mut ui = UI::disabled();
                     let mut count: i64 = 0;
-                    solve(board, column + 1, &mut count, &mut ui);
+                    solve(board, column + 1, &mut count);
                     //tx.send(count).unwrap();
                     count
                 }));
             } else {
-                solve(board, column + 1, &mut count, &mut ui);
+                solve(board, column + 1, &mut count);
             }
             board.set(column, y, false);
         }
@@ -102,13 +100,13 @@ fn main() {
         print_usage(&program, opts);
         return;
     }
-    let mut ui = match matches.opt_present("g") {
-        true => UI::new(),
-        false => UI::disabled(),
-    };
+    // let mut ui = match matches.opt_present("g") {
+    //     true => UI::new(),
+    //     false => UI::disabled(),
+    // };
     let board = Board::new();
     let now = time::Instant::now();
     let mut count: i64 = 0;
-    solve(board, 0, &mut count, &mut ui);
+    solve(board, 0, &mut count);
     println!("{}\n{}", now.elapsed().as_nanos(), count);
 }
