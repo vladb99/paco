@@ -7,9 +7,7 @@ use std::{env, time};
 use util::board::Board;
 use util::ui::UI;
 use std::thread;
-use std::sync::mpsc::*;
 use std::thread::JoinHandle;
-use rayon::prelude::*;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -32,7 +30,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
 
     //let (tx, rx) = channel();
     //let mut count_threads = 0;
-    //let allowed_threads = 12;
+    //let allowed_threads = 13;
 
     let mut threads: Vec<JoinHandle<i64>> = vec![];
 
