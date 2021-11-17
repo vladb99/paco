@@ -4,6 +4,8 @@ use getopts::Options;
 use std::{env, time};
 use util::board::Board;
 use util::ui::UI;
+use std::thread;
+use std::sync::mpsc::*;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -13,11 +15,21 @@ fn print_usage(program: &str, opts: Options) {
 const N: usize = 13;
 
 fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) {
+    let mut is_main_thread = false;
+    if column == 0 {
+        is_main_thread = true;
+    }
+
     if column == N {
         *count += 1;
         ui.plot(board);
         return;
     }
+
+    let (tx, rx) = channel();
+    //let mut count_threads = 0;
+    //let allowed_threads = 13;
+
     for y in 0..N {
         let mut ok: bool = true;
         for x in 0..column {
@@ -35,9 +47,29 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64, mut ui: &mut UI) 
         if ok {
             board.set(column, y, true);
             ui.plot(board);
-            solve(board, column + 1, &mut count, &mut ui);
+
+            if is_main_thread {
+                //count_threads += 1;
+                let tx = tx.clone();
+                thread::spawn(move || {
+                    let mut ui = UI::disabled();
+                    let mut count: i64 = 0;
+                    solve(board, column + 1, &mut count, &mut ui);
+                    tx.send(count).unwrap();
+                });
+            } else {
+                solve(board, column + 1, &mut count, &mut ui);
+            }
             board.set(column, y, false);
         }
+    }
+    drop(tx);
+    while let Ok(msg) = rx.recv() {
+        *count += msg;
+    }
+
+    if is_main_thread {
+        //println!("{}", count_threads);
     }
 }
 
