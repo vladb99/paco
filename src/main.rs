@@ -9,7 +9,6 @@ use util::ui::UI;
 use std::thread;
 use std::thread::JoinHandle;
 use thread_priority::*;
-use rayon::prelude::*;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -18,73 +17,45 @@ fn print_usage(program: &str, opts: Options) {
 
 const N: usize = 13;
 
-fn test(mut board: Board, mut count: &mut i64) {
-    let sum_counts: i64 = (0..N).into_par_iter().map(|y| {
-        //println!("{}", y);
-        //set_current_thread_priority(ThreadPriority::Specific(7));
-        //let mut board = test.lock().unwrap();
-        let mut board = board.clone();
-        board.set(0, y, true);
-        let mut count: i64 = 0;
-        solve(board, 1, &mut count);
-        board.set(0, y, false);
-        //println!("{}", count);
-        count
-    }).sum();
-
-    *count = sum_counts;
-}
-
-
 fn solve(mut board: Board, column: usize, mut count: &mut i64) {
-    //let mut threads: Vec<JoinHandle<i64>> = vec![];
-
-    //let test = Arc::new(Mutex::new(board));
-
-
-    // for y in 0..N {
-    //     // if y % 2 != 0 { continue; }
-    //     board.set(0, y, true);
-    //
-    //     // let mut count1: i64 = 0;
-    //     // let mut count2: i64 = 0;
-    //
-    //     // rayon::join(|| solve(board, 1, &mut count1),
-    //     //             || solve(board, 1, &mut count2));
-    //
-    //     threads.push(thread::spawn(move || {
-    //         //set_current_thread_priority(ThreadPriority::Max);
-    //         let mut count: i64 = 0;
-    //         solve(board, 1, &mut count);
-    //         count
-    //     }));
-    //     board.set(0, y, false);
-    // }
-    // for thread in threads {
-    //    *count += thread.join().unwrap();
-    // }
-    if column == N {
-        *count += 1;
-        return;
-    }
-    for y in 0..N {
-        let mut ok: bool = true;
-        for x in 0..column {
-            if board.get(x, y).is_occupied()
-                || y + x >= column && board.get(x, y + x - column).is_occupied()
-                || y + column < N + x && board.get(x, y + column - x).is_occupied()
-            {
-                ok = false;
-                break;
-            }
-            if !ok {
-                break;
-            }
+    if column == 0 {
+        let mut threads: Vec<JoinHandle<i64>> = vec![];
+        for y in 0..N {
+            board.set(0, y, true);
+            threads.push(thread::spawn(move || {
+                let mut count: i64 = 0;
+                solve(board, 1, &mut count);
+                count
+            }));
+            board.set(0, y, false);
         }
-        if ok {
-            board.set(column, y, true);
-            solve(board, column + 1, &mut count);
-            board.set(column, y, false);
+        for thread in threads {
+            *count += thread.join().unwrap();
+        }
+    } else {
+        if column == N {
+            *count += 1;
+            return;
+        }
+        for y in 0..N {
+            let mut ok: bool = true;
+            for x in 0..column {
+                if board.get(x, y).is_occupied()
+                    || y + x >= column && board.get(x, y + x - column).is_occupied()
+                    || y + column < N + x && board.get(x, y + column - x).is_occupied()
+                {
+                    ok = false;
+                    break;
+                }
+                if !ok {
+                    break;
+                }
+            }
+            if ok {
+                board.set(column, y, true);
+                solve(board, column + 1, &mut count);
+                board.set(column, y, false);
+            }
         }
     }
 }
@@ -110,11 +81,10 @@ fn main() {
         true => UI::new(),
         false => UI::disabled(),
     };
-    //set_current_thread_priority(ThreadPriority::Specific(75));
+    set_current_thread_priority(ThreadPriority::Specific(75));
     let board = Board::new();
-    let mut count: i64 = 0;
     let now = time::Instant::now();
-    test(board, &mut count);
-    //solve(board, 0, &mut count);
+    let mut count: i64 = 0;
+    solve(board, 0, &mut count);
     println!("{}\n{}", now.elapsed().as_nanos(), count);
 }
