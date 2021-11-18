@@ -31,7 +31,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
             //             || solve(board, 1, &mut count2));
 
             threads.push(thread::spawn(move || {
-                set_current_thread_priority(ThreadPriority::Max);
+                //set_current_thread_priority(ThreadPriority::Max);
                 let mut count: i64 = 0;
                 solve(board, 1, &mut count);
                 count
