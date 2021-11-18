@@ -1,5 +1,7 @@
 extern crate getopts;
+
 pub mod util;
+
 use getopts::Options;
 use std::{env, time};
 use util::board::Board;
@@ -16,74 +18,55 @@ fn print_usage(program: &str, opts: Options) {
 const N: usize = 13;
 
 fn solve(mut board: Board, column: usize, mut count: &mut i64) {
-    let mut is_main_thread = false;
     if column == 0 {
-       is_main_thread = true;
-    }
-
-    if column == N {
-        *count += 1;
-        //ui.plot(board);
-        return;
-    }
-
-    //let (tx, rx) = channel();
-    //let mut count_threads = 0;
-    //let allowed_threads = 13;
-
-    let mut threads: Vec<JoinHandle<i64>> = vec![];
-    //let mut threads:[JoinHandle<i64>; 13];
-
-    for y in 0..N {
-        let mut ok: bool = true;
-        for x in 0..column {
-            if board.get(x, y).is_occupied()
-                || y + x >= column && board.get(x, y + x - column).is_occupied()
-                || y + column < N + x && board.get(x, y + column - x).is_occupied()
-            {
-                ok = false;
-                break;
-            }
-            if !ok {
-                break;
-            }
-        }
-        if ok {
+        let mut threads: Vec<JoinHandle<i64>> = vec![];
+        for y in 0..N {
+            //if y % 2 != 0 { continue; }
             board.set(column, y, true);
-            //ui.plot(board);
 
-            if is_main_thread {
-                //count_threads += 1;
-                //let tx = tx.clone();
-                threads.push(thread::spawn(move || {
-                    set_current_thread_priority(ThreadPriority::Max);
-                    //let mut ui = UI::disabled();
-                    let mut count: i64 = 0;
-                    solve(board, column + 1, &mut count);
-                    //tx.send(count).unwrap();
-                    count
-                }));
-            } else {
-                solve(board, column + 1, &mut count);
-            }
+            // let mut count1: i64 = 0;
+            // let mut count2: i64 = 0;
+            //
+            // rayon::join(|| solve(board, column + 1, &mut count1),
+            //             || solve(board, column + 2, &mut count2));
+
+            threads.push(thread::spawn(move || {
+                set_current_thread_priority(ThreadPriority::Max);
+                let mut count: i64 = 0;
+                solve(board, 1, &mut count);
+                count
+            }));
             board.set(column, y, false);
         }
-    }
-    if is_main_thread {
-        // drop(tx);
-        // while let Ok(msg) = rx.recv() {
-        //     *count += msg;
-        // }
-        //*count += threads.iter().map(|t| t.join().unwrap() as i64).sum::<i64>();
-
         for thread in threads {
-            *count += thread.join().unwrap();
+           *count += thread.join().unwrap();
+        }
+    } else {
+        if column == N {
+            *count += 1;
+            return;
+        }
+        for y in 0..N {
+            let mut ok: bool = true;
+            for x in 0..column {
+                if board.get(x, y).is_occupied()
+                    || y + x >= column && board.get(x, y + x - column).is_occupied()
+                    || y + column < N + x && board.get(x, y + column - x).is_occupied()
+                {
+                    ok = false;
+                    break;
+                }
+                if !ok {
+                    break;
+                }
+            }
+            if ok {
+                board.set(column, y, true);
+                solve(board, column + 1, &mut count);
+                board.set(column, y, false);
+            }
         }
     }
-
-    // if is_main_thread {
-    //     println!("{}", count_threads);
-    // }
 }
 
 fn main() {
@@ -107,7 +90,7 @@ fn main() {
     //     true => UI::new(),
     //     false => UI::disabled(),
     // };
-    set_current_thread_priority(ThreadPriority::Max);
+    set_current_thread_priority(ThreadPriority::Specific(75));
     let board = Board::new();
     let now = time::Instant::now();
     let mut count: i64 = 0;
