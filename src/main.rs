@@ -22,7 +22,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
         let mut threads: Vec<JoinHandle<i64>> = vec![];
         for y in 0..N {
             //if y % 2 != 0 { continue; }
-            board.set(column, y, true);
+            board.set(0, y, true);
 
             // let mut count1: i64 = 0;
             // let mut count2: i64 = 0;
@@ -36,7 +36,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
                 solve(board, 1, &mut count);
                 count
             }));
-            board.set(column, y, false);
+            board.set(0, y, false);
         }
         for thread in threads {
            *count += thread.join().unwrap();
@@ -70,22 +70,22 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let program = args[0].clone();
-
-    let mut opts = Options::new();
-    opts.optflag("g", "graphical", "use graphical output");
-    opts.optflag("h", "help", "print this help menu");
-    let matches = match opts.parse(&args[1..]) {
-        Ok(m) => m,
-        Err(f) => {
-            panic!("{}", f.to_string())
-        }
-    };
-    if matches.opt_present("h") {
-        print_usage(&program, opts);
-        return;
-    }
+    // let args: Vec<String> = env::args().collect();
+    // let program = args[0].clone();
+    //
+    // let mut opts = Options::new();
+    // opts.optflag("g", "graphical", "use graphical output");
+    // opts.optflag("h", "help", "print this help menu");
+    // let matches = match opts.parse(&args[1..]) {
+    //     Ok(m) => m,
+    //     Err(f) => {
+    //         panic!("{}", f.to_string())
+    //     }
+    // };
+    // if matches.opt_present("h") {
+    //     print_usage(&program, opts);
+    //     return;
+    // }
     // let mut ui = match matches.opt_present("g") {
     //     true => UI::new(),
     //     false => UI::disabled(),
