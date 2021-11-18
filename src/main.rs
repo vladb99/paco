@@ -9,6 +9,7 @@ use util::ui::UI;
 use std::thread;
 use std::thread::JoinHandle;
 use thread_priority::*;
+use rayon::prelude::*;
 
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} FILE [options]", program);
@@ -17,31 +18,48 @@ fn print_usage(program: &str, opts: Options) {
 
 const N: usize = 13;
 
+
 fn solve(mut board: Board, column: usize, mut count: &mut i64) {
     if column == 0 {
-        let mut threads: Vec<JoinHandle<i64>> = vec![];
-        for y in 0..N {
-            // if y % 2 != 0 { continue; }
+        //let mut threads: Vec<JoinHandle<i64>> = vec![];
+
+        //let test = Arc::new(Mutex::new(board));
+        let sum_counts: i64 = (0..N).into_par_iter().map(|y| {
+            //println!("{}", y);
+            //set_current_thread_priority(ThreadPriority::Specific(7));
+            //let mut board = test.lock().unwrap();
+            let mut board=  board.clone();
             board.set(0, y, true);
-
-            // let mut count1: i64 = 0;
-            // let mut count2: i64 = 0;
-
-            // rayon::join(|| solve(board, 1, &mut count1),
-            //             || solve(board, 1, &mut count2));
-
-            threads.push(thread::spawn(move || {
-                //set_current_thread_priority(ThreadPriority::Max);
-                let mut count: i64 = 0;
-                solve(board, 1, &mut count);
-                count
-            }));
+            let mut count: i64 = 0;
+            solve(board, 1, &mut count);
             board.set(0, y, false);
-        }
-        for thread in threads {
-           *count += thread.join().unwrap();
-            //break;
-        }
+            //println!("{}", count);
+            count
+        }).sum();
+
+        *count = sum_counts;
+
+        // for y in 0..N {
+        //     // if y % 2 != 0 { continue; }
+        //     board.set(0, y, true);
+        //
+        //     // let mut count1: i64 = 0;
+        //     // let mut count2: i64 = 0;
+        //
+        //     // rayon::join(|| solve(board, 1, &mut count1),
+        //     //             || solve(board, 1, &mut count2));
+        //
+        //     threads.push(thread::spawn(move || {
+        //         //set_current_thread_priority(ThreadPriority::Max);
+        //         let mut count: i64 = 0;
+        //         solve(board, 1, &mut count);
+        //         count
+        //     }));
+        //     board.set(0, y, false);
+        // }
+        // for thread in threads {
+        //    *count += thread.join().unwrap();
+        // }
     } else {
         if column == N {
             *count += 1;
@@ -91,7 +109,7 @@ fn main() {
         true => UI::new(),
         false => UI::disabled(),
     };
-    set_current_thread_priority(ThreadPriority::Specific(75));
+    //set_current_thread_priority(ThreadPriority::Specific(75));
     let board = Board::new();
     let now = time::Instant::now();
     let mut count: i64 = 0;
