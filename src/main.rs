@@ -21,25 +21,27 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
     if column == 0 {
         let mut threads: Vec<JoinHandle<i64>> = vec![];
         for y in 0..N {
-            //if y % 2 != 0 { continue; }
-            board.set(0, y, true);
+            // if y % 2 != 0 { continue; }
+            //board.set(0, y, true);
 
             // let mut count1: i64 = 0;
             // let mut count2: i64 = 0;
-            //
-            // rayon::join(|| solve(board, column + 1, &mut count1),
-            //             || solve(board, column + 2, &mut count2));
+
+            // rayon::join(|| solve(board, 1, &mut count1),
+            //             || solve(board, 1, &mut count2));
 
             threads.push(thread::spawn(move || {
-                set_current_thread_priority(ThreadPriority::Max);
+                board.set(0, y, true);
+                //set_current_thread_priority(ThreadPriority::Max);
                 let mut count: i64 = 0;
                 solve(board, 1, &mut count);
+                board.set(0, y, false);
                 count
             }));
-            board.set(0, y, false);
         }
         for thread in threads {
            *count += thread.join().unwrap();
+            //break;
         }
     } else {
         if column == N {
@@ -70,26 +72,26 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
 }
 
 fn main() {
-    // let args: Vec<String> = env::args().collect();
-    // let program = args[0].clone();
-    //
-    // let mut opts = Options::new();
-    // opts.optflag("g", "graphical", "use graphical output");
-    // opts.optflag("h", "help", "print this help menu");
-    // let matches = match opts.parse(&args[1..]) {
-    //     Ok(m) => m,
-    //     Err(f) => {
-    //         panic!("{}", f.to_string())
-    //     }
-    // };
-    // if matches.opt_present("h") {
-    //     print_usage(&program, opts);
-    //     return;
-    // }
-    // let mut ui = match matches.opt_present("g") {
-    //     true => UI::new(),
-    //     false => UI::disabled(),
-    // };
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut opts = Options::new();
+    opts.optflag("g", "graphical", "use graphical output");
+    opts.optflag("h", "help", "print this help menu");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(f) => {
+            panic!("{}", f.to_string())
+        }
+    };
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
+        return;
+    }
+    let mut ui = match matches.opt_present("g") {
+        true => UI::new(),
+        false => UI::disabled(),
+    };
     set_current_thread_priority(ThreadPriority::Specific(75));
     let board = Board::new();
     let now = time::Instant::now();
