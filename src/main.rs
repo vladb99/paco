@@ -22,7 +22,7 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
         let mut threads: Vec<JoinHandle<i64>> = vec![];
         for y in 0..N {
             // if y % 2 != 0 { continue; }
-            //board.set(0, y, true);
+            board.set(0, y, true);
 
             // let mut count1: i64 = 0;
             // let mut count2: i64 = 0;
@@ -31,13 +31,12 @@ fn solve(mut board: Board, column: usize, mut count: &mut i64) {
             //             || solve(board, 1, &mut count2));
 
             threads.push(thread::spawn(move || {
-                board.set(0, y, true);
                 set_current_thread_priority(ThreadPriority::Max);
                 let mut count: i64 = 0;
                 solve(board, 1, &mut count);
-                board.set(0, y, false);
                 count
             }));
+            board.set(0, y, false);
         }
         for thread in threads {
            *count += thread.join().unwrap();
