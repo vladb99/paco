@@ -111,8 +111,22 @@ fn main() {
         height: 180,
     };
 
+    let first_area = core::Rect {
+        x: 564,
+        y: 829,
+        width: 356,
+        height: 180,
+    };
+
+    let second_area = core::Rect {
+        x: 977,
+        y: 830,
+        width: 603,
+        height: 185,
+    };
+
     // Create multiple threads and distribute the frames evenly
-    let step = 100f64;
+    let step = 325f64;
     let mut batches: Vec<(f64, f64)> = Vec::new();
     let mut idx = 0f64;
     loop {
@@ -136,23 +150,37 @@ fn main() {
 
     let static_batch: &Vec<(f64, f64)> = Box::leak(Box::from(batches));
 
-    let detected_objects_lane_one = spawn_thread_for_lane(down_first_area, &shared_classifier, static_batch);
-    let detected_objects_lane_two = spawn_thread_for_lane(down_second_area, &shared_classifier, static_batch);
-    let detected_objects_lane_three = spawn_thread_for_lane(up_first_area, &shared_classifier, static_batch);
-    let detected_objects_lane_four = spawn_thread_for_lane(up_second_area, &shared_classifier, static_batch);
-    let detected_objects_lane_five = spawn_thread_for_lane(up_third_area, &shared_classifier, static_batch);
+    // let detected_objects_lane_one = spawn_thread_for_lane(down_first_area, &shared_classifier, static_batch);
+    // let detected_objects_lane_two = spawn_thread_for_lane(down_second_area, &shared_classifier, static_batch);
+    // let detected_objects_lane_three = spawn_thread_for_lane(up_first_area, &shared_classifier, static_batch);
+    // let detected_objects_lane_four = spawn_thread_for_lane(up_second_area, &shared_classifier, static_batch);
+    // let detected_objects_lane_five = spawn_thread_for_lane(up_third_area, &shared_classifier, static_batch);
 
-    let cars_count_lane_one = count_objects(detected_objects_lane_one);
-    let cars_count_lane_two = count_objects(detected_objects_lane_two);
-    let cars_count_lane_three = count_objects(detected_objects_lane_three);
-    let cars_count_lane_four = count_objects(detected_objects_lane_four);
-    let cars_count_lane_five = count_objects(detected_objects_lane_five);
+    let mut detected_objects_lane_one = spawn_thread_for_lane(first_area, &shared_classifier, static_batch);
+    let mut detected_objects_lane_two = spawn_thread_for_lane(second_area, &shared_classifier, static_batch);
 
-    println!("{} {} {} {} {}", cars_count_lane_one, cars_count_lane_two, cars_count_lane_three, cars_count_lane_four, cars_count_lane_five);
+    detected_objects_lane_one.append(&mut detected_objects_lane_two);
+
+    let counted_objects = count_objects(detected_objects_lane_one);
+
+
+
+    // let cars_count_lane_one = count_objects(detected_objects_lane_one);
+    // let cars_count_lane_two = count_objects(detected_objects_lane_two);
+    // let cars_count_lane_three = count_objects(detected_objects_lane_three);
+    // let cars_count_lane_four = count_objects(detected_objects_lane_four);
+    // let cars_count_lane_five = count_objects(detected_objects_lane_five);
+
+    println!("{} {} {} {} {}", counted_objects.0, counted_objects.1, counted_objects.2, counted_objects.3, counted_objects.4);
 }
 
-fn count_objects(detected_objects: Vec<Object>) -> i32 {
-    let mut objects_count = 0;
+fn count_objects(detected_objects: Vec<Object>) -> (i32, i32, i32, i32, i32) {
+    let mut objects_count_1 = 0;
+    let mut objects_count_2 = 0;
+    let mut objects_count_3 = 0;
+    let mut objects_count_4 = 0;
+    let mut objects_count_5 = 0;
+
     let threshold_pixel_y = 90;
     let threshold_frames: f64 = 10f64;
     let mut taken_objects: Vec<f64> = Vec::new();
@@ -161,10 +189,26 @@ fn count_objects(detected_objects: Vec<Object>) -> i32 {
             continue;
         }
         taken_objects.push(i as f64);
-        objects_count += 1;
+
+        let lane = get_lane(object.x, object.y);
+        if lane == 0 {
+            objects_count_1 += 1;
+        } else if lane == 1 {
+            objects_count_2 += 1;
+        } else if lane == 2 {
+            objects_count_3 += 1;
+        } else if lane == 3 {
+            objects_count_4 += 1;
+        } else {
+            objects_count_5 += 1;
+        }
         let mut reference_object = Object::new(object.frame, object.x, object.y, object.width, object.height);
         for (j, possible_neighbor) in detected_objects.iter().enumerate() {
             if possible_neighbor.cmp(&object) {
+                continue;
+            }
+            let lane_neighbor = get_lane(possible_neighbor.x, possible_neighbor.y);
+            if lane != lane_neighbor {
                 continue;
             }
             if taken_objects.contains(&(j as f64)) {
@@ -178,7 +222,22 @@ fn count_objects(detected_objects: Vec<Object>) -> i32 {
             }
         }
     }
-    objects_count
+    //objects_count
+    (objects_count_1, objects_count_2, objects_count_3, objects_count_4, objects_count_5)
+}
+
+fn get_lane(x: i32, y: i32) -> i32 {
+    if x >= 564 && x <=  744 {
+        0
+    } else if x >= 770 && x <= 950 {
+        1
+    } else if x >= 1000 && x <= 1150 {
+        2
+    } else if x >= 1180 && x <= 1310 {
+        3
+    } else {
+        4
+    }
 }
 
 fn spawn_thread_for_lane(area: core::Rect, shared_classifier: &Arc<Mutex<CascadeClassifier>>, batches: &'static Vec<(f64, f64)>) -> Vec<Object> {
