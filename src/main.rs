@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use opencv::{core};
 use rayon::prelude::*;
@@ -71,107 +72,26 @@ fn init_args() -> (String, f64) {
 
 fn main() {
     // Get Args
+    let file_name = &ARGS.0;
     let number_of_frames = ARGS.1;
 
     // Open files
-    let car_classifier = CascadeClassifier::new("cars.xml");
+    let mut car_classifier = CascadeClassifier::new("cars.xml");
 
-    // Define the areas for the 5 lanes
-    let down_first_area = core::Rect {
-        x: 564,
-        y: 830,
-        width: 180,
-        height: 180,
-    };
-    let down_second_area = core::Rect {
-        x: 770,
-        y: 830,
-        width: 150,
-        height: 180,
-    };
-
-    let up_first_area = core::Rect {
-        x: 1000,
-        y: 830,
-        width: 150,
-        height: 180,
-    };
-
-    let up_second_area = core::Rect {
-        x: 1180,
-        y: 830,
-        width: 130,
-        height: 180,
-    };
-
-    let up_third_area = core::Rect {
-        x: 1400,
-        y: 830,
-        width: 130,
-        height: 180,
-    };
-
-    let first_area = core::Rect {
-        x: 564,
-        y: 829,
-        width: 356,
-        height: 180,
-    };
-
-    let second_area = core::Rect {
-        x: 977,
-        y: 830,
-        width: 603,
-        height: 185,
-    };
-
-    // Create multiple threads and distribute the frames evenly
-    let step = 325f64;
-    let mut batches: Vec<(f64, f64)> = Vec::new();
-    let mut idx = 0f64;
-    loop {
-        let start = idx;
-        idx += step;
-        let mut end = idx;
-        if end > number_of_frames {
-            end = number_of_frames;
-            if start == end {
-                break;
-            }
-            let batch = (start, end);
-            batches.push(batch);
-            break;
-        }
-        let batch = (start, end);
-        batches.push(batch);
+    let skipping = 10;
+    let mut vid = Video::new(file_name);
+    let mut vid_container = Vec::new();
+    for fidx in (0..vid.frame_count as i32).step_by(skipping) {
+        vid_container.push((fidx, vid.get_grayframe(fidx as f64).unwrap()));
     }
 
-    let shared_classifier = Arc::new(Mutex::new(car_classifier));
+    let mut cars = HashMap::new();
+    for (fidx, gray) in vid_container {
+        let c = car_classifier.detect_on_frame(&gray);
+        cars.insert(fidx, c);
+    }
 
-    let static_batch: &Vec<(f64, f64)> = Box::leak(Box::from(batches));
-
-    // let detected_objects_lane_one = spawn_thread_for_lane(down_first_area, &shared_classifier, static_batch);
-    // let detected_objects_lane_two = spawn_thread_for_lane(down_second_area, &shared_classifier, static_batch);
-    // let detected_objects_lane_three = spawn_thread_for_lane(up_first_area, &shared_classifier, static_batch);
-    // let detected_objects_lane_four = spawn_thread_for_lane(up_second_area, &shared_classifier, static_batch);
-    // let detected_objects_lane_five = spawn_thread_for_lane(up_third_area, &shared_classifier, static_batch);
-
-    let mut detected_objects_lane_one = spawn_thread_for_lane(first_area, &shared_classifier, static_batch);
-    let mut detected_objects_lane_two = spawn_thread_for_lane(second_area, &shared_classifier, static_batch);
-
-    detected_objects_lane_one.append(&mut detected_objects_lane_two);
-
-    let counted_objects = count_objects(detected_objects_lane_one);
-
-
-
-    // let cars_count_lane_one = count_objects(detected_objects_lane_one);
-    // let cars_count_lane_two = count_objects(detected_objects_lane_two);
-    // let cars_count_lane_three = count_objects(detected_objects_lane_three);
-    // let cars_count_lane_four = count_objects(detected_objects_lane_four);
-    // let cars_count_lane_five = count_objects(detected_objects_lane_five);
-
-    println!("{} {} {} {} {}", counted_objects.0, counted_objects.1, counted_objects.2, counted_objects.3, counted_objects.4);
+    println!("frames in map {}", cars.len());
 }
 
 fn count_objects(detected_objects: Vec<Object>) -> (i32, i32, i32, i32, i32) {
