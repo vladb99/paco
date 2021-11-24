@@ -78,7 +78,7 @@ fn main() {
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
-    let skipping = 10;
+    let skipping = 15;
     let mut vid_container: Vec<(i32, Mat)>  = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
@@ -90,11 +90,16 @@ fn main() {
     let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
         .map(|tuple| {
             //let mut temp_classifer = car_classifier.lock().unwrap();
-            let mut car_classifier = CascadeClassifier::new("cars.xml");
+            let mut car_classifier = unsafe {CascadeClassifier::new("cars.xml")};
             let c = car_classifier.detect_on_frame(&tuple.1);
             (tuple.0, c)
         })
         .collect();
+
+
+
+
+
 
     // let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = cars.into_par_iter()
     //     .map(|tuple| {
