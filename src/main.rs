@@ -8,7 +8,6 @@ use video::*;
 use clap::{Arg, App};
 use std::thread;
 use opencv::core::Mat;
-use std::mem::drop;
 
 pub mod detection;
 pub mod video;
@@ -81,19 +80,17 @@ fn main() {
     let mut car_classifier = CascadeClassifier::new("cars.xml");
 
     let skipping = 10;
-    let mut vid = Arc::new(Mutex::new(Video::new(file_name)));
-    let guard = vid.lock().unwrap();
-    let frame_count = guard.frame_count;
-    drop(guard);
+    let mut vid = Video::new(file_name);
     // let mut vid_container = Vec::new();
     // for fidx in (0..vid.frame_count as i32).step_by(skipping) {
     //     vid_container.push((fidx, vid.get_grayframe(fidx as f64).unwrap()));
     // }
 
-    let mut vid_container: Vec<i32>  = (0..frame_count as i32).into_par_iter()
+    let mut vid_container: Vec<i32>  = (0..vid.frame_count as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
-            let test = vid.lock().unwrap().get_grayframe(frame_index as f64).unwrap();
+            let mut vid = Video::new(file_name);
+            let test = vid.get_grayframe(frame_index as f64).unwrap();
             (frame_index)
         })
         .collect();
