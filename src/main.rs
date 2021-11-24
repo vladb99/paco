@@ -7,7 +7,7 @@ use detection::*;
 use video::*;
 use clap::{Arg, App};
 use std::thread;
-use opencv::core::Mat;
+use opencv::core::{Mat, Rect, Vector};
 
 pub mod detection;
 pub mod video;
@@ -77,11 +77,8 @@ fn main() {
     let number_of_frames = ARGS.1;
 
     // Open files
-    let mut car_classifier = CascadeClassifier::new("cars.xml");
-
+    let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
     let skipping = 10;
-    let mut vid = Video::new(file_name);
-
     let mut vid_container: Vec<(i32, Mat)>  = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
@@ -90,14 +87,16 @@ fn main() {
         })
         .collect();
 
+    let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
+        .map(|tuple| {
+            let mut temp_classifer = car_classifier.lock().unwrap();
+            let c = temp_classifer.detect_on_frame(&tuple.1);
+            (tuple.0, c)
+        })
+        .collect();
 
-    //let mut cars = HashMap::new();
-    //for (fidx, gray) in vid_container {
-    //    let c = car_classifier.detect_on_frame(&gray);
-    //    cars.insert(fidx, c);
-    //}
-
-    println!("{}", vid_container.len());
+    //println!("{}", vid_container.len());
+    println!("{}", cars.len());
     println!("{} {} {} {} {}", 1, 1, 1, 1, 1);
 }
 
