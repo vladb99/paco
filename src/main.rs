@@ -79,21 +79,19 @@ fn main() {
     // Open files
     let mut car_classifier = CascadeClassifier::new("cars.xml");
 
-    let skipping = 10;
-    let mut vid = Video::new(file_name);
+    //let skipping = 10;
+    //let mut vid = Video::new(file_name);
     // let mut vid_container = Vec::new();
     // for fidx in (0..vid.frame_count as i32).step_by(skipping) {
     //     vid_container.push((fidx, vid.get_grayframe(fidx as f64).unwrap()));
     // }
 
-    let mut vid_container: Vec<i32>  = (0..vid.frame_count as i32).into_par_iter()
-        .filter(|frame_index| frame_index % skipping == 0)
-        .map(|frame_index| {
-            let mut vid = Video::new(file_name);
-            let test = vid.get_grayframe(frame_index as f64).unwrap();
-            (frame_index)
-        })
-        .collect();
+    let skipping = 10;
+    let mut vid = Video::new(file_name);
+    let mut vid_container = Vec::new();
+    for fidx in (0..vid.frame_count as i32).step_by(skipping) {
+        vid_container.push((fidx, vid.get_grayframe(fidx as f64).unwrap()));
+    }
 
 
     //let mut cars = HashMap::new();
