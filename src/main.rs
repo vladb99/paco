@@ -140,6 +140,14 @@ fn main() {
                     // because you only want to look at two tuples
                     break;
                 }
+                match ref_lane {
+                    0 => count_first_lane += 1,
+                    1 => count_second_lane += 1,
+                    2 => count_third_lane += 1,
+                    3 => count_fourth_lane += 1,
+                    4 => count_fifth_lane += 1,
+                    _ => {}
+                }
             }
             (count_first_lane, count_second_lane, count_third_lane, count_fourth_lane, count_fifth_lane)
         })
@@ -165,7 +173,7 @@ fn main() {
 }
 
 fn is_in_area(x: i32, y: i32) -> bool {
-    if x >= 564 && x <= 1480 && y >= 830 && y <= 1010 {
+    if x >= 564 && x <= 1580 && y >= 785 && y <= 1010 {
         return true;
     }
     return false;
