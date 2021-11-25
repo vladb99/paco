@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use opencv::{core};
+use opencv::{core, types};
 use rayon::prelude::*;
 use detection::*;
 use video::*;
@@ -78,7 +78,7 @@ fn main() {
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
-    let skipping = 20;
+    let skipping = 4;
     let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
@@ -93,9 +93,14 @@ fn main() {
         .map(|tuple| {
             //let mut temp_classifer = car_classifier.lock().unwrap();
             let mut car_classifier = CascadeClassifier::new("cars.xml");
-            let c = car_classifier.detect_on_frame(&tuple.1);
-
-            (tuple.0, c)
+            let objects = car_classifier.detect_on_frame(&tuple.1);
+            let mut filtered_objects: Vector<Rect> = types::VectorOfRect::new();
+            for object in objects {
+                if is_in_area(object.x, object.y) {
+                    filtered_objects.push(object);
+                }
+            }
+            (tuple.0, filtered_objects)
         })
         .collect();
 
@@ -111,12 +116,10 @@ fn main() {
             let mut count_fifth_lane = 0;
 
             for car in &tuple.1 {
-                if !is_in_area(car.x, car.y) { continue; }
                 let ref_lane = get_lane(car.x);
                 for next_frame in test.lock().unwrap().iter() {
                     if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
                     for possible_same_car in &next_frame.1 {
-                        if !is_in_area(possible_same_car.x, possible_same_car.y) { continue; }
                         let lane = get_lane(possible_same_car.x);
                         if ref_lane != lane { continue; }
                         if lane == 1 || lane == 2 {
@@ -169,7 +172,7 @@ fn main() {
 
     //println!("{}", vid_container.len());
     //println!("{}", cars.len());
-    println!("{} {} {} {} {}", 1, 1, 1, 1, 1);
+    println!("{} {} {} {} {}", count_first_lane, count_second_lane, count_third_lane, count_fourth_lane, count_fifth_lane);
 }
 
 fn is_in_area(x: i32, y: i32) -> bool {
