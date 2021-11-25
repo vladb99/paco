@@ -78,7 +78,7 @@ fn main() {
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
-    let skipping = 4;
+    let skipping = 20;
     let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
@@ -105,6 +105,9 @@ fn main() {
         .collect();
 
     //println!("Detecting cars done");
+
+    // Sort cars by frame index
+    //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
     let test = Arc::new(Mutex::new(cars.clone()));
     let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
@@ -243,8 +246,11 @@ fn get_lane(x: i32) -> i32 {
         2
     } else if x >= 1180 && x <= 1310 {
         3
-    } else {
+    } else  if x >= 1330 && x <= 1460 {
         4
+    } else {
+        println!("Should not happen! {}", x);
+        -1
     }
 }
 
