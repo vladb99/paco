@@ -251,7 +251,7 @@ fn get_lane(x: i32) -> i32 {
     } else  if x >= 1330 && x <= 1460 {
         4
     } else {
-        println!("Should not happen! {}", x);
+        //println!("Should not happen! {}", x);
         -1
     }
 }
