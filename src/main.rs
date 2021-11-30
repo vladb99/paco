@@ -78,7 +78,7 @@ fn main() {
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
-    let skipping = 15;
+    let skipping = 20;
     let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
@@ -109,7 +109,7 @@ fn main() {
     // Sort cars by frame index
     //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-    let test = Arc::new(Mutex::new(cars.clone()));
+    let second_list = Arc::new(Mutex::new(cars.clone()));
     let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
         .map(|tuple| {
             let mut count_first_lane = 0;
@@ -121,7 +121,9 @@ fn main() {
             for car in &tuple.1 {
                 let ref_center_x = car.x + car.width / 2;
                 let ref_lane = get_lane(ref_center_x);
-                for next_frame in test.lock().unwrap().iter() {
+                let mut already_counted = false;
+                for next_frame in second_list.lock().unwrap().iter() {
+                    // find next frame, which has the difference of skipping constant
                     if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
                     for possible_same_car in &next_frame.1 {
                         let center_x = possible_same_car.x + possible_same_car.width / 2;
@@ -136,6 +138,7 @@ fn main() {
                                 continue;
                             }
                         }
+                        already_counted = true;
                         match lane {
                             0 => count_first_lane += 1,
                             1 => count_second_lane += 1,
@@ -145,8 +148,11 @@ fn main() {
                             _ => {}
                         }
                     }
-                    // because you only want to look at two tuples
+                    // break to speed up, because there is not other frame has the same difference
                     break;
+                }
+                if already_counted {
+                    continue;
                 }
                 match ref_lane {
                     0 => count_first_lane += 1,
@@ -244,11 +250,11 @@ fn get_lane(x: i32) -> i32 {
         0
     } else if x >= 770 && x <= 950 {
         1
-    } else if x >= 1000 && x <= 1150 {
+    } else if x >= 1000 && x <= 1155 {
         2
-    } else if x >= 1180 && x <= 1310 {
+    } else if x >= 1170 && x <= 1300 {
         3
-    } else  if x >= 1330 && x <= 1460 {
+    } else  if x >= 1320 && x <= 1470 {
         4
     } else {
         //println!("Should not happen! {}", x);
