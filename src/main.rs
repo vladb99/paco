@@ -109,7 +109,7 @@ fn main() {
     // Sort cars by frame index
     //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-    let second_list = Arc::new(Mutex::new(cars.clone()));
+    //let second_list = Arc::new(Mutex::new(cars.clone()));
     let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
         .map(|tuple| {
             let mut count_first_lane = 0;
@@ -122,38 +122,39 @@ fn main() {
                 let ref_center_x = car.x + car.width / 2;
                 let ref_lane = get_lane(ref_center_x);
                 let mut already_counted = false;
-                for next_frame in second_list.lock().unwrap().iter() {
-                    // find next frame, which has the difference of skipping constant
-                    if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
-                    for possible_same_car in &next_frame.1 {
-                        let center_x = possible_same_car.x + possible_same_car.width / 2;
-                        let lane = get_lane(center_x);
-                        if ref_lane != lane { continue; }
-                        if lane == 1 || lane == 2 {
-                            if !(car.y < possible_same_car.y) {
-                                continue;
-                            }
-                        } else {
-                            if !(car.y > possible_same_car.y) {
-                                continue;
-                            }
-                        }
-                        already_counted = true;
-                        match lane {
-                            0 => count_first_lane += 1,
-                            1 => count_second_lane += 1,
-                            2 => count_third_lane += 1,
-                            3 => count_fourth_lane += 1,
-                            4 => count_fifth_lane += 1,
-                            _ => {}
-                        }
-                    }
-                    // break to speed up, because there is not other frame has the same difference
-                    break;
-                }
+                // for next_frame in second_list.lock().unwrap().iter() {
+                //     // find next frame, which has the difference of skipping constant
+                //     if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
+                //     for possible_same_car in &next_frame.1 {
+                //         let center_x = possible_same_car.x + possible_same_car.width / 2;
+                //         let lane = get_lane(center_x);
+                //         if ref_lane != lane { continue; }
+                //         if lane == 1 || lane == 2 {
+                //             if !(car.y < possible_same_car.y) {
+                //                 continue;
+                //             }
+                //         } else {
+                //             if !(car.y > possible_same_car.y) {
+                //                 continue;
+                //             }
+                //         }
+                //         already_counted = true;
+                //         match lane {
+                //             0 => count_first_lane += 1,
+                //             1 => count_second_lane += 1,
+                //             2 => count_third_lane += 1,
+                //             3 => count_fourth_lane += 1,
+                //             4 => count_fifth_lane += 1,
+                //             _ => {}
+                //         }
+                //     }
+                //     // break to speed up, because there is not other frame has the same difference
+                //     break;
+                // }
                 if already_counted {
                     continue;
                 }
+                // if no car was identified in next frame, that is the same car, then count this only car
                 match ref_lane {
                     0 => count_first_lane += 1,
                     1 => count_second_lane += 1,
