@@ -51,20 +51,18 @@ fn main() {
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
-    let mut vid = Arc::new(Mutex::new(Video::new(file_name)));
-
     let skipping = 20;
     let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
-            //let mut vid = Video::new(file_name);
-            let mut temp_vid = vid.lock().unwrap();
-            (frame_index, temp_vid.get_grayframe(frame_index as f64).unwrap())
+            let mut vid = Video::new(file_name);
+            (frame_index, vid.get_grayframe(frame_index as f64).unwrap())
         })
         .collect();
 
     let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
         .map(|tuple| {
+            //let mut temp_classifer = car_classifier.lock().unwrap();
             let mut car_classifier = CascadeClassifier::new("cars.xml");
             let objects = car_classifier.detect_on_frame(&tuple.1);
             let mut filtered_objects: Vector<Rect> = types::VectorOfRect::new();
@@ -153,8 +151,6 @@ fn main() {
         count_fifth_lane += tuple.4;
     }
 
-    //println!("{}", vid_container.len());
-    //println!("{}", cars.len());
     println!("{} {} {} {} {}", count_first_lane, count_second_lane, count_third_lane, count_fourth_lane, count_fifth_lane);
 }
 
