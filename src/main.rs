@@ -78,7 +78,7 @@ fn main() {
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
-    let skipping = 10;
+    let skipping = 15;
     let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
