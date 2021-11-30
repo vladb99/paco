@@ -51,7 +51,7 @@ fn main() {
     }
 
     // Setting the threads number that is spawned by rayon
-    set_var("RAYON_NUM_THREADS", "9");
+    //set_var("RAYON_NUM_THREADS", "1");
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
