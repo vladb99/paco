@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use opencv::{core, types};
-use rayon::prelude::*;
+//use rayon::prelude::*;
 use detection::*;
 use video::*;
 use std::thread;
@@ -52,7 +52,7 @@ fn main() {
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
     let skipping = 20;
-    let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
+    let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
             let mut vid = Video::new(file_name);
@@ -60,7 +60,7 @@ fn main() {
         })
         .collect();
 
-    let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
+    let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_iter()
         .map(|tuple| {
             //let mut temp_classifer = car_classifier.lock().unwrap();
             let mut car_classifier = CascadeClassifier::new("cars.xml");
@@ -79,7 +79,7 @@ fn main() {
     //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
     let second_list = Arc::new(Mutex::new(cars.clone()));
-    let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
+    let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_iter()
         .map(|tuple| {
             let mut count_first_lane = 0;
             let mut count_second_lane = 0;
