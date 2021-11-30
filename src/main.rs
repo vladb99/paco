@@ -22,59 +22,10 @@ pub mod video;
 //////////////////////////////////////////////////////////////////////
 
 
-#[macro_use]
-extern crate lazy_static;
-
-lazy_static! {
-    pub static ref ARGS: (String, f64) = init_args();
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Object {
-    pub frame: f64,
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-
-impl Object {
-    pub fn new(frame: f64, x: i32, y: i32, width: i32, height: i32) -> Object {
-        Object {
-            frame,
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-
-    pub fn cmp(&self, object: &Object) -> bool {
-        return self.frame == object.frame &&
-            self.x == object.x &&
-            self.y == object.y &&
-            self.width == object.width &&
-            self.height == object.height;
-    }
-}
-
-fn init_args() -> (String, f64) {
-    let matches = App::new("Car Tracking Program")
-        .arg(Arg::new("number")
-            .short('n')
-            .takes_value(true))
-        .arg(Arg::new("path")
-            .short('f')
-            .takes_value(true)
-            .required(true))
-        .get_matches();
-    (matches.value_of("path").unwrap().to_string(), matches.value_of("number").unwrap_or("2690").parse().unwrap())
-}
-
 fn main() {
     // Get Args
-    let file_name = &ARGS.0;
-    let number_of_frames = ARGS.1;
+    let file_name = "Cars.mp4";
+    let number_of_frames = 2690;
 
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
@@ -86,8 +37,6 @@ fn main() {
             (frame_index, vid.get_grayframe(frame_index as f64).unwrap())
         })
         .collect();
-
-    //println!("Reading frames done");
 
     let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
         .map(|tuple| {
@@ -104,12 +53,10 @@ fn main() {
         })
         .collect();
 
-    //println!("Detecting cars done");
-
     // Sort cars by frame index
     //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-    //let second_list = Arc::new(Mutex::new(cars.clone()));
+    let second_list = Arc::new(Mutex::new(cars.clone()));
     let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
         .map(|tuple| {
             let mut count_first_lane = 0;
@@ -122,35 +69,35 @@ fn main() {
                 let ref_center_x = car.x + car.width / 2;
                 let ref_lane = get_lane(ref_center_x);
                 let mut already_counted = false;
-                // for next_frame in second_list.lock().unwrap().iter() {
-                //     // find next frame, which has the difference of skipping constant
-                //     if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
-                //     for possible_same_car in &next_frame.1 {
-                //         let center_x = possible_same_car.x + possible_same_car.width / 2;
-                //         let lane = get_lane(center_x);
-                //         if ref_lane != lane { continue; }
-                //         if lane == 1 || lane == 2 {
-                //             if !(car.y < possible_same_car.y) {
-                //                 continue;
-                //             }
-                //         } else {
-                //             if !(car.y > possible_same_car.y) {
-                //                 continue;
-                //             }
-                //         }
-                //         already_counted = true;
-                //         match lane {
-                //             0 => count_first_lane += 1,
-                //             1 => count_second_lane += 1,
-                //             2 => count_third_lane += 1,
-                //             3 => count_fourth_lane += 1,
-                //             4 => count_fifth_lane += 1,
-                //             _ => {}
-                //         }
-                //     }
-                //     // break to speed up, because there is not other frame has the same difference
-                //     break;
-                // }
+                for next_frame in second_list.lock().unwrap().iter() {
+                    // find next frame, which has the difference of skipping constant
+                    if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
+                    for possible_same_car in &next_frame.1 {
+                        let center_x = possible_same_car.x + possible_same_car.width / 2;
+                        let lane = get_lane(center_x);
+                        if ref_lane != lane { continue; }
+                        if lane == 1 || lane == 2 {
+                            if !(car.y < possible_same_car.y) {
+                                continue;
+                            }
+                        } else {
+                            if !(car.y > possible_same_car.y) {
+                                continue;
+                            }
+                        }
+                        already_counted = true;
+                        match lane {
+                            0 => count_first_lane += 1,
+                            1 => count_second_lane += 1,
+                            2 => count_third_lane += 1,
+                            3 => count_fourth_lane += 1,
+                            4 => count_fifth_lane += 1,
+                            _ => {}
+                        }
+                    }
+                    // break to speed up, because there is not other frame has the same difference
+                    break;
+                }
                 if already_counted {
                     continue;
                 }
@@ -194,58 +141,6 @@ fn is_in_area(x: i32, y: i32) -> bool {
     return false;
 }
 
-// fn count_objects(detected_objects: Vec<Object>) -> (i32, i32, i32, i32, i32) {
-//     let mut objects_count_1 = 0;
-//     let mut objects_count_2 = 0;
-//     let mut objects_count_3 = 0;
-//     let mut objects_count_4 = 0;
-//     let mut objects_count_5 = 0;
-//
-//     let threshold_pixel_y = 90;
-//     let threshold_frames: f64 = 10f64;
-//     let mut taken_objects: Vec<f64> = Vec::new();
-//     for (i, object) in detected_objects.iter().enumerate() {
-//         if taken_objects.contains(&(i as f64)) {
-//             continue;
-//         }
-//         taken_objects.push(i as f64);
-//
-//         let lane = get_lane(object.x, object.y);
-//         if lane == 0 {
-//             objects_count_1 += 1;
-//         } else if lane == 1 {
-//             objects_count_2 += 1;
-//         } else if lane == 2 {
-//             objects_count_3 += 1;
-//         } else if lane == 3 {
-//             objects_count_4 += 1;
-//         } else {
-//             objects_count_5 += 1;
-//         }
-//         let mut reference_object = Object::new(object.frame, object.x, object.y, object.width, object.height);
-//         for (j, possible_neighbor) in detected_objects.iter().enumerate() {
-//             if possible_neighbor.cmp(&object) {
-//                 continue;
-//             }
-//             let lane_neighbor = get_lane(possible_neighbor.x, possible_neighbor.y);
-//             if lane != lane_neighbor {
-//                 continue;
-//             }
-//             if taken_objects.contains(&(j as f64)) {
-//                 continue;
-//             }
-//             let pos_diff = (possible_neighbor.y - reference_object.y).abs();
-//             let frame_diff = possible_neighbor.frame - reference_object.frame;
-//             if pos_diff <= threshold_pixel_y && frame_diff <= threshold_frames {
-//                 taken_objects.push(j as f64);
-//                 reference_object = Object::new(possible_neighbor.frame, possible_neighbor.x, possible_neighbor.y, possible_neighbor.width, possible_neighbor.height);
-//             }
-//         }
-//     }
-//     //objects_count
-//     (objects_count_1, objects_count_2, objects_count_3, objects_count_4, objects_count_5)
-// }
-
 fn get_lane(x: i32) -> i32 {
     if x >= 564 && x <= 744 {
         0
@@ -258,7 +153,6 @@ fn get_lane(x: i32) -> i32 {
     } else  if x >= 1320 && x <= 1470 {
         4
     } else {
-        //println!("Should not happen! {}", x);
         -1
     }
 }
