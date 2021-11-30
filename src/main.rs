@@ -50,7 +50,7 @@ fn main() {
     }
 
     // Open files
-    //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
+    let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
     let skipping = 20;
     let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
@@ -62,9 +62,9 @@ fn main() {
 
     let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
         .map(|tuple| {
-            //let mut temp_classifer = car_classifier.lock().unwrap();
-            let mut car_classifier = CascadeClassifier::new("cars.xml");
-            let objects = car_classifier.detect_on_frame(&tuple.1);
+            let mut temp_classifer = car_classifier.lock().unwrap();
+            //let mut car_classifier = CascadeClassifier::new("cars.xml");
+            let objects = temp_classifer.detect_on_frame(&tuple.1);
             let mut filtered_objects: Vector<Rect> = types::VectorOfRect::new();
             for object in objects {
                 if is_in_area(object.x, object.y) {
