@@ -1,158 +1,173 @@
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use opencv::{core, types};
 use rayon::prelude::*;
-use detection::*;
-use video::*;
-use clap::{Arg, App};
-use std::thread;
-use opencv::core::{Mat, Rect, Vector};
+use std::sync::{Arc, mpsc, Mutex};
 
 pub mod detection;
 pub mod video;
 
-//////////////////////////////////////////////////////////////////////
-// FileName:            main.rs
-// FileType:            Rust - Source file
-// Author:              Vlad Bratulescu
-// Task:                Aufgabe 2
-// Created On:          07.11.2021
-// Last Modified On :   11.11.2021 23.50
-//////////////////////////////////////////////////////////////////////
+use detection::*;
+use video::*;
+use clap::{Arg, App};
 
+#[macro_use]
+extern crate lazy_static;
+
+
+lazy_static! {
+    pub static ref ARGS: (String, f64) = init_args();
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Object {
+    pub frame: i32,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+impl Object {
+    pub fn new(frame: i32, x: i32, y: i32, width: i32, height: i32) -> Object {
+        Object {
+            frame,
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    pub fn cmp(&self, object: &Object) -> bool {
+        return self.frame == object.frame &&
+            self.x == object.x &&
+            self.y == object.y &&
+            self.width == object.width &&
+            self.height == object.height;
+    }
+}
+
+fn init_args() -> (String, f64) {
+    let matches = App::new("Car Tracking Program")
+        .arg(Arg::new("number")
+            .short('n')
+            .takes_value(true))
+        .arg(Arg::new("path")
+            .short('f')
+            .takes_value(true)
+            .required(true))
+        .get_matches();
+    (matches.value_of("path").unwrap().to_string(), matches.value_of("number").unwrap_or("2690").parse().unwrap())
+}
 
 fn main() {
     // Get Args
-    let file_name = "Cars.mp4";
-    let number_of_frames = 2690;
+    let number_of_frames = ARGS.1;
 
-    // Open files
-    //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
+    let (tx, rx) = mpsc::channel();
+
     let skipping = 20;
-    let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
-        .filter(|frame_index| frame_index % skipping == 0)
-        .map(|frame_index| {
-            let mut vid = Video::new(file_name);
-            (frame_index, vid.get_grayframe(frame_index as f64).unwrap())
-        })
-        .collect();
+    let mut vid = Video::new(&ARGS.0);
+    let mut vid_container = Vec::new();
+    for fidx in (0..number_of_frames as i32).step_by(skipping) {
+        vid_container.push((fidx, vid.get_grayframe(fidx as f64).unwrap()));
+    }
 
-    let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
-        .map(|tuple| {
-            //let mut temp_classifer = car_classifier.lock().unwrap();
-            let mut car_classifier = CascadeClassifier::new("cars.xml");
-            let objects = car_classifier.detect_on_frame(&tuple.1);
-            let mut filtered_objects: Vector<Rect> = types::VectorOfRect::new();
-            for object in objects {
-                if is_in_area(object.x, object.y) {
-                    filtered_objects.push(object);
+    let first_rect_x_range = 564..744;
+    let rect_y_range = 830..1010;
+    let second_rect_x_range = 770..920;
+    let third_rect_x_range = 1000..1150;
+    let fourth_rect_x_range = 1180..1310;
+    let fifth_rect_x_range = 1350..1480;
+    let car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
+    vid_container.into_par_iter().for_each_with(tx, |s, x| {
+        let mut temp_classifer = car_classifier.lock().unwrap();
+        let cars = temp_classifer.detect_on_frame(&x.1);
+        for car in cars {
+            if first_rect_x_range.contains(&car.x) {
+                if rect_y_range.contains(&car.y) {
+                    let object = Object::new(x.0, car.x, car.y, car.width, car.height);
+                    s.send((0, object)).unwrap();
+                }
+            } else if second_rect_x_range.contains(&car.x) {
+                if rect_y_range.contains(&car.y) {
+                    let object = Object::new(x.0, car.x, car.y, car.width, car.height);
+                    s.send((1, object)).unwrap();
+                }
+            } else if third_rect_x_range.contains(&car.x) {
+                if rect_y_range.contains(&car.y) {
+                    let object = Object::new(x.0, car.x, car.y, car.width, car.height);
+                    s.send((2, object)).unwrap();
+                }
+            } else if fourth_rect_x_range.contains(&car.x) {
+                if rect_y_range.contains(&car.y) {
+                    let object = Object::new(x.0, car.x, car.y, car.width, car.height);
+                    s.send((3, object)).unwrap();
+                }
+            } else if fifth_rect_x_range.contains(&car.x) {
+                if rect_y_range.contains(&car.y) {
+                    let object = Object::new(x.0, car.x, car.y, car.width, car.height);
+                    s.send((4, object)).unwrap();
                 }
             }
-            (tuple.0, filtered_objects)
-        })
-        .collect();
+        }
+    });
 
-    // Sort cars by frame index
-    //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    let mut firstlane_obj: Vec<Object> = vec![];
+    let mut secondlane_obj: Vec<Object> = vec![];
+    let mut thirdlane_obj: Vec<Object> = vec![];
+    let mut fourlane_obj: Vec<Object> = vec![];
+    let mut fivelane_obj: Vec<Object> = vec![];
 
-    let second_list = Arc::new(Mutex::new(cars.clone()));
-    let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
-        .map(|tuple| {
-            let mut count_first_lane = 0;
-            let mut count_second_lane = 0;
-            let mut count_third_lane = 0;
-            let mut count_fourth_lane = 0;
-            let mut count_fifth_lane = 0;
+    for (i, obj) in rx {
+        match i {
+            0 => firstlane_obj.push(obj),
+            1 => secondlane_obj.push(obj),
+            2 => thirdlane_obj.push(obj),
+            3 => fourlane_obj.push(obj),
+            4 => fivelane_obj.push(obj),
+            _ => {}
+        }
+    }
 
-            for car in &tuple.1 {
-                let ref_center_x = car.x + car.width / 2;
-                let ref_lane = get_lane(ref_center_x);
-                let mut already_counted = false;
-                for next_frame in second_list.lock().unwrap().iter() {
-                    // find next frame, which has the difference of skipping constant
-                    if next_frame.0 == tuple.0 || next_frame.0 - tuple.0 != skipping { continue; }
-                    for possible_same_car in &next_frame.1 {
-                        let center_x = possible_same_car.x + possible_same_car.width / 2;
-                        let lane = get_lane(center_x);
-                        if ref_lane != lane { continue; }
-                        if lane == 1 || lane == 2 {
-                            if !(car.y < possible_same_car.y) {
-                                continue;
-                            }
-                        } else {
-                            if !(car.y > possible_same_car.y) {
-                                continue;
-                            }
-                        }
-                        already_counted = true;
-                        match lane {
-                            0 => count_first_lane += 1,
-                            1 => count_second_lane += 1,
-                            2 => count_third_lane += 1,
-                            3 => count_fourth_lane += 1,
-                            4 => count_fifth_lane += 1,
-                            _ => {}
-                        }
-                    }
-                    // break to speed up, because there is not other frame has the same difference
-                    break;
-                }
-                if already_counted {
-                    continue;
-                }
-                // if no car was identified in next frame, that is the same car, then count this only car
-                match ref_lane {
-                    0 => count_first_lane += 1,
-                    1 => count_second_lane += 1,
-                    2 => count_third_lane += 1,
-                    3 => count_fourth_lane += 1,
-                    4 => count_fifth_lane += 1,
-                    _ => {}
-                }
+    firstlane_obj.sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap());
+    secondlane_obj.sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap());
+    thirdlane_obj.sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap());
+    fourlane_obj.sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap());
+    fivelane_obj.sort_by(|a, b| a.frame.partial_cmp(&b.frame).unwrap());
+    let cars_count_lane_one = count_objects(&firstlane_obj);
+    let cars_count_lane_two = count_objects(&secondlane_obj);
+    let cars_count_lane_three = count_objects(&thirdlane_obj);
+    let cars_count_lane_four = count_objects(&fourlane_obj);
+    let cars_count_lane_five = count_objects(&fivelane_obj);
+    println!("{} {} {} {} {}", cars_count_lane_one, cars_count_lane_two, cars_count_lane_three, cars_count_lane_four, cars_count_lane_five);
+}
+
+fn count_objects(detected_objects: &Vec<Object>) -> i32 {
+    let mut objects_count = 0;
+    let threshold_pixel_y = 75;
+    let threshold_frames: i32 = 10;
+    let mut taken_objects: Vec<i32> = Vec::new();
+    for (i, object) in detected_objects.iter().enumerate() {
+        if taken_objects.contains(&(i as i32)) {
+            continue;
+        }
+        taken_objects.push(i as i32);
+        objects_count += 1;
+        let mut reference_object = Object::new(object.frame, object.x, object.y, object.width, object.height);
+        for (j, possible_neighbor) in detected_objects.iter().enumerate() {
+            if possible_neighbor.cmp(&object) {
+                continue;
             }
-            (count_first_lane, count_second_lane, count_third_lane, count_fourth_lane, count_fifth_lane)
-        })
-        .collect();
-
-    let mut count_first_lane = 0;
-    let mut count_second_lane = 0;
-    let mut count_third_lane = 0;
-    let mut count_fourth_lane = 0;
-    let mut count_fifth_lane = 0;
-
-    for tuple in counted_objects {
-        count_first_lane += tuple.0;
-        count_second_lane += tuple.1;
-        count_third_lane += tuple.2;
-        count_fourth_lane += tuple.3;
-        count_fifth_lane += tuple.4;
+            if taken_objects.contains(&(j as i32)) {
+                continue;
+            }
+            let pos_diff = (possible_neighbor.y - reference_object.y).abs();
+            let frame_diff = possible_neighbor.frame - reference_object.frame;
+            if pos_diff <= threshold_pixel_y && frame_diff <= threshold_frames {
+                taken_objects.push(j as i32);
+                reference_object = Object::new(possible_neighbor.frame, possible_neighbor.x, possible_neighbor.y, possible_neighbor.width, possible_neighbor.height);
+            }
+        }
     }
-
-    //println!("{}", vid_container.len());
-    //println!("{}", cars.len());
-    println!("{} {} {} {} {}", count_first_lane, count_second_lane, count_third_lane, count_fourth_lane, count_fifth_lane);
-}
-
-fn is_in_area(x: i32, y: i32) -> bool {
-    if x >= 564 && x <= 1580 && y >= 785 && y <= 1010 {
-        return true;
-    }
-    return false;
-}
-
-fn get_lane(x: i32) -> i32 {
-    if x >= 564 && x <= 744 {
-        0
-    } else if x >= 770 && x <= 950 {
-        1
-    } else if x >= 1000 && x <= 1155 {
-        2
-    } else if x >= 1170 && x <= 1300 {
-        3
-    } else  if x >= 1320 && x <= 1470 {
-        4
-    } else {
-        -1
-    }
+    //println!("{:?}", taken_objects);
+    objects_count
 }
