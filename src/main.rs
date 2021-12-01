@@ -1,14 +1,11 @@
-use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use opencv::{core, types};
+use opencv::{types};
 use rayon::prelude::*;
 use detection::*;
 use video::*;
-use std::thread;
 use opencv::core::{Mat, Rect, Vector};
 use std::env;
-use std::env::set_var;
+//use std::env::set_var;
 
 pub mod detection;
 pub mod video;
@@ -19,7 +16,7 @@ pub mod video;
 // Author:              Vlad Bratulescu
 // Task:                Aufgabe 2
 // Created On:          07.11.2021
-// Last Modified On :   11.11.2021 23.50
+// Last Modified On :   01.12.2021 23.50
 //////////////////////////////////////////////////////////////////////
 
 fn main() {
@@ -56,7 +53,7 @@ fn main() {
     // Open files
     //let mut car_classifier = Arc::new(Mutex::new(CascadeClassifier::new("cars.xml")));
     let skipping = 20;
-    let mut vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
+    let vid_container: Vec<(i32, Mat)> = (0..number_of_frames as i32).into_par_iter()
         .filter(|frame_index| frame_index % skipping == 0)
         .map(|frame_index| {
             let mut vid = Video::new(file_name);
@@ -64,7 +61,7 @@ fn main() {
         })
         .collect();
 
-    let mut cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
+    let cars: Vec<(i32, Vector<Rect>)> = vid_container.into_par_iter()
         .map(|tuple| {
             //let mut temp_classifer = car_classifier.lock().unwrap();
             let mut car_classifier = CascadeClassifier::new("cars.xml");
@@ -83,7 +80,7 @@ fn main() {
     //cars.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
     let second_list = Arc::new(Mutex::new(cars.clone()));
-    let mut counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
+    let counted_objects: Vec<(i32, i32, i32, i32, i32)> = (cars.clone()).into_par_iter()
         .map(|tuple| {
             let mut count_first_lane = 0;
             let mut count_second_lane = 0;
@@ -177,7 +174,6 @@ fn get_lane(x: i32) -> i32 {
     } else  if x >= 1320 && x <= 1470 {
         4
     } else {
-        //println!("Should not happen! {}", x);
         -1
     }
 }
